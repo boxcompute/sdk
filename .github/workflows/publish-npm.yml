@@ -1,0 +1,79 @@
+name: Publish TypeScript SDK
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Publish the TypeScript package version from main to npm
+        required: true
+        default: false
+        type: boolean
+
+concurrency:
+  group: publish-typescript-sdk
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    if: inputs.publish && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - name: Install trusted-publishing-compatible npm
+        run: npm install --global npm@11
+      - run: npm ci
+      - run: npm run check:openapi
+      - run: npm run generate
+      - run: git diff --exit-code -- packages/typescript/src/generated/schema.ts
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+      - name: Read package version
+        id: package
+        run: |
+          echo "name=$(node --print "require('./packages/typescript/package.json').name")" >> "$GITHUB_OUTPUT"
+          echo "version=$(node --print "require('./packages/typescript/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Refuse an existing release
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          if npm view "$PACKAGE_NAME@$PACKAGE_VERSION" version >/dev/null 2>&1; then
+            echo "$PACKAGE_NAME@$PACKAGE_VERSION already exists on npm" >&2
+            exit 1
+          fi
+      - run: npm pack --dry-run --workspace @boxcompute/sdk
+      - name: Publish npm package
+        run: npm publish --workspace @boxcompute/sdk --access public
+      - name: Verify npm release
+        env:
+          PACKAGE_NAME: ${{ steps.package.outputs.name }}
+          PACKAGE_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          for attempt in $(seq 1 12); do
+            published="$(npm view "$PACKAGE_NAME" version 2>/dev/null || true)"
+            if [ "$published" = "$PACKAGE_VERSION" ]; then
+              echo "Published $PACKAGE_NAME@$PACKAGE_VERSION"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "$PACKAGE_NAME@$PACKAGE_VERSION was not visible after publication" >&2
+          exit 1

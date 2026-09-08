@@ -1,0 +1,29 @@
+{
+  "name": "boxcompute-sdk-monorepo",
+  "version": "0.0.0",
+  "description": "Official TypeScript and Python clients for the public BoxCompute API",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "workspaces": [
+    "packages/typescript"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @boxcompute/sdk",
+    "check:openapi": "node scripts/check-openapi.mjs",
+    "generate": "openapi-typescript openapi/boxcompute-v2.json -o packages/typescript/src/generated/schema.ts",
+    "lint": "npm run lint --workspace @boxcompute/sdk",
+    "sync:openapi": "node scripts/sync-openapi.mjs",
+    "test": "npm run test --workspace @boxcompute/sdk",
+    "typecheck": "npm run typecheck --workspace @boxcompute/sdk"
+  },
+  "devDependencies": {
+    "openapi-typescript": "^7.10.1"
+  },
+  "overrides": {
+    "esbuild": "^0.28.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

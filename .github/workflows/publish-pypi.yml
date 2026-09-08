@@ -17,13 +17,9 @@ permissions:
   contents: read
 
 jobs:
-  publish:
+  build:
     if: inputs.publish && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      contents: read
-      id-token: write
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -51,8 +47,29 @@ jobs:
             exit 1
           fi
           test "$status" = "404"
+      - name: Upload distributions
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: python-distributions
+          path: packages/python/dist/*
+          if-no-files-found: error
+          retention-days: 1
+
+  publish:
+    needs: build
+    if: inputs.publish && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write
+    steps:
+      - name: Download distributions
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          name: python-distributions
+          path: dist
       - name: Publish PyPI package
         uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33
         with:
-          packages-dir: packages/python/dist/
+          packages-dir: dist/
           print-hash: true

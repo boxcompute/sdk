@@ -92,7 +92,7 @@ describe("BoxCompute", () => {
     let requested = "";
     const client = new BoxCompute({
       apiKey: "bc_live_test",
-      baseUrl: "https://example.test/",
+      baseUrl: "https://example.test///",
       fetch: async (input) => {
         requested = String(input);
         return json({ entries: [], nextCursor: null });
@@ -103,6 +103,22 @@ describe("BoxCompute", () => {
     expect(requested).toBe(
       "https://example.test/api/v2/sandboxes/sbx%2Fone/files/list?path=%2Fworkspace%2Fa+b&pageSize=25",
     );
+  });
+
+  it("normalizes base URLs without regex backtracking", async () => {
+    const baseUrl = `https://example.test/${"/".repeat(50_000)}resource`;
+    let requested = "";
+    const client = new BoxCompute({
+      apiKey: "bc_live_test",
+      baseUrl,
+      fetch: async (input) => {
+        requested = String(input);
+        return json({ workspaces: [] });
+      },
+    });
+
+    await client.workspaces.list();
+    expect(requested).toBe(`${baseUrl}/api/v2/workspaces`);
   });
 
   it("does not retry or hide transport failures", async () => {

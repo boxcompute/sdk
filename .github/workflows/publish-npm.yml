@@ -90,7 +90,8 @@ jobs:
           packages=(release/*.tgz)
           test "${#packages[@]}" -eq 1
           test -f "${packages[0]}"
-          npm publish "${packages[0]}" --access public
+          package_path="$(realpath -- "${packages[0]}")"
+          npm publish "$package_path" --access public
       - name: Verify npm release
         env:
           PACKAGE_NAME: ${{ needs.build.outputs.package-name }}

@@ -34,3 +34,20 @@ Update `packages/python/pyproject.toml` and the changelog, merge the tested
 change to `main`, then dispatch **Publish Python SDK** with `publish=true`. The
 workflow builds both the wheel and source distribution, refuses an existing
 version, and publishes through PyPI trusted publishing.
+
+## Repository release notes
+
+After every package in a release set is published and verified, create one
+GitHub Release that follows the BoxCompute integrator-release convention:
+
+1. Tag the exact qualified `main` commit as `sdk-YYYY-MM-DD`. Add `.2`, `.3`,
+   and so on for another release on the same date. Never move or reuse a tag.
+2. Use the tag as the release title. Start with a one-paragraph summary, then
+   list customer-visible changes under `## Consumers`. Add `## Security` when
+   security posture or consumer action changed.
+3. Name every npm and PyPI version in the release. These versions are
+   independent and may differ.
+4. End the notes with `Through: <full commit SHA>` so the published packages,
+   source snapshot, and qualification evidence have one explicit boundary.
+5. Create the release as a draft, verify the target, notes, registry versions,
+   provenance, and clean-install checks, then publish it unchanged.

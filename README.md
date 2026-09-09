@@ -81,6 +81,9 @@ The npm and PyPI packages have independent versions and trusted-publishing
 workflows. Releases are immutable and can only be published from `main` through
 their protected GitHub environments.
 
+See the [changelog](CHANGELOG.md) for package versions, security updates, and
+consumer actions.
+
 Repository and registry administrators should follow the
 [release setup](docs/releasing.md) before publishing the first versions.
 

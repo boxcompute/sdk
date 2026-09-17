@@ -69,7 +69,10 @@ export interface paths {
         /** List owned Sandbox instances */
         get: operations["listSandboxes"];
         put?: never;
-        /** Create and start a Sandbox in an owned workspace */
+        /**
+         * Create and start a Sandbox in an owned workspace
+         * @description VM Sandboxes require Idempotency-Key and return promptly as pending while durable reconciliation provisions the fixed VM profile. Reuse the same key to recover the same public Sandbox; replay returns 202 while pending and 201 once ready.
+         */
         post: operations["createSandbox"];
         delete?: never;
         options?: never;
@@ -124,6 +127,121 @@ export interface paths {
         /** Execute structured argv in an owned Sandbox */
         post: operations["executeCommand"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sandboxes/{id}/services": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create selected TCP access on an operator-pinned active runtime (default off)
+         * @description Required UUIDv4 Idempotency-Key and immutable requested_at. One retained client, 1–8 strictly ascending unique ports, exact requested_at+300 expiry. No provisioning or mutation retry. Returns only a sealed capability.
+         */
+        post: operations["createServiceAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sandboxes/{id}/services/lookup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Recover the original live service envelope without renewal */
+        post: operations["lookupServiceAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sandboxes/{id}/services/{generationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Revoke the exact service generation
+         * @description Guardian-confirmed is an authenticated daemon response, not independent physical-stop proof. Uncertain cleanup returns an error, never success.
+         */
+        delete: operations["revokeServiceAccess"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sandboxes/{id}/cooperative-connection": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate the operator-selected cooperative SSH MVP (default off)
+         * @description Existing owned active runtime only. One nonrenewable grant of at most 30 seconds; no provisioning, retry or physical-stop guarantee.
+         */
+        post: operations["activateCooperativeConnection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sandboxes/{id}/start": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start an existing owned Sandbox slot
+         * @description No slot allocation or caller-selected image. Reuses its current runtime; operator-selected cooperative slots cannot restore sleeping or terminal runtimes.
+         */
+        post: operations["startExistingSandbox"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sandboxes/{id}/cooperative-connection/{endpointId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Return the unchanged original envelope for the same keys */
+        post: operations["reconnectCooperativeConnection"];
+        /** Request best-effort cooperative cleanup; always unconfirmed */
+        delete: operations["revokeCooperativeConnection"];
         options?: never;
         head?: never;
         patch?: never;
@@ -363,9 +481,43 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        StartSandboxRequest: Record<string, never>;
+        ServiceAccessRequest: {
+            requested_at: number;
+            client_key: string;
+            recipient_key: string;
+            ports: number[];
+        };
+        ServiceAccessId: string;
+        ServiceAccessEnvelope: {
+            generation_id: string;
+            expires_at: number;
+            sealed: string;
+        };
+        ServiceAccessRevoke: {
+            generation_id: string;
+            /** @constant */
+            cleanup: "guardian-confirmed";
+        };
+        CooperativeConnectionKeys: {
+            client_key: string;
+            ssh_key: string;
+            recipient_key: string;
+        };
+        CooperativeEndpointId: string;
+        CooperativeEnvelope: {
+            endpoint_id: string;
+            expires_at: number;
+            sealed: string;
+        };
+        CooperativeRevoke: {
+            endpoint_id: string;
+            /** @constant */
+            cleanup: "unconfirmed";
+        };
         Error: {
             /** @enum {string} */
-            code: "AUTHENTICATION_REQUIRED" | "INVALID_API_KEY" | "INSUFFICIENT_SCOPE" | "INVALID_REQUEST" | "INVALID_PATH" | "INVALID_RANGE" | "INVALID_CURSOR" | "CURSOR_STALE" | "NOT_FOUND" | "FILE_NOT_FOUND" | "DESTINATION_EXISTS" | "PRECONDITION_FAILED" | "EDIT_CONFLICT" | "BINARY_FILE" | "EXECUTION_TIMEOUT" | "PAYLOAD_TOO_LARGE" | "SANDBOX_UNAVAILABLE" | "UNSUPPORTED_MEDIA_TYPE" | "INVALID_IDEMPOTENCY_KEY" | "IDEMPOTENCY_CONFLICT" | "WORKSPACE_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE";
+            code: "AUTHENTICATION_REQUIRED" | "INVALID_API_KEY" | "INSUFFICIENT_SCOPE" | "INSUFFICIENT_CREDIT" | "BILLING_ACCOUNT_FROZEN" | "FEATURE_ACCESS_DENIED" | "INVALID_REQUEST" | "INVALID_PATH" | "INVALID_RANGE" | "INVALID_CURSOR" | "CURSOR_STALE" | "NOT_FOUND" | "FILE_NOT_FOUND" | "DESTINATION_EXISTS" | "PRECONDITION_FAILED" | "EDIT_CONFLICT" | "BINARY_FILE" | "EXECUTION_TIMEOUT" | "PAYLOAD_TOO_LARGE" | "SANDBOX_UNAVAILABLE" | "UNSUPPORTED_MEDIA_TYPE" | "INVALID_IDEMPOTENCY_KEY" | "IDEMPOTENCY_CONFLICT" | "WORKSPACE_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE";
             error: string;
         };
         Workspace: {
@@ -383,13 +535,23 @@ export interface components {
             workspaceId: string;
             name: string;
             /** @enum {string} */
-            state: "cold" | "running";
+            state: "cold" | "pending" | "running" | "expired";
+            vmSandbox: boolean;
+            /** @description Immutable VM network intent: true means no NIC; false means Internet. Omitted for non-VM sandboxes and historical replay responses. */
+            blockNetwork?: boolean;
             createdAt: number;
             lastUsedAt: number | null;
         };
         CreateSandboxRequest: {
             workspaceId: string;
             name?: string;
+            /**
+             * @description Runtime selection. Omitted or true creates a VM sandbox (fixed image; no volumes, libraries or image override); false creates a gVisor container sandbox. An explicit vmSandbox:true requires an Idempotency-Key header; an omitted vmSandbox may create keyless, in which case the server generates the key. Historical idempotency replays retain their original runtime.
+             * @default true
+             */
+            vmSandbox: boolean;
+            /** @description VM only: defaults to false (Internet) for new requests; true selects no NIC. Ignored for non-VM sandboxes. Historical idempotency replays retain their original blocked intent. */
+            blockNetwork?: boolean;
         } & {
             [key: string]: unknown;
         };
@@ -829,6 +991,17 @@ export interface operations {
                     };
                 };
             };
+            /** @description VM Sandbox durably accepted and pending */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sandbox: components["schemas"]["Sandbox"];
+                    };
+                };
+            };
             /** @description Invalid request */
             400: {
                 headers: {
@@ -840,6 +1013,15 @@ export interface operations {
             };
             /** @description Missing or invalid API key */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description BoxCompute credit is exhausted */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1142,6 +1324,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description BoxCompute credit is exhausted */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description API key lacks the required scope */
             403: {
                 headers: {
@@ -1180,6 +1371,622 @@ export interface operations {
             };
             /** @description Request body is not application/json */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createServiceAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["schemas"]["ServiceAccessId"];
+            };
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceAccessRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAccessEnvelope"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body exceeds 128 KiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body is not application/json */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    lookupServiceAccess: {
+        parameters: {
+            query?: never;
+            header: {
+                "Idempotency-Key": components["schemas"]["ServiceAccessId"];
+            };
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ServiceAccessRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAccessEnvelope"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body exceeds 128 KiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body is not application/json */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    revokeServiceAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+                generationId: components["schemas"]["ServiceAccessId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ServiceAccessRevoke"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body exceeds 128 KiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body is not application/json */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    activateCooperativeConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CooperativeConnectionKeys"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CooperativeEnvelope"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body exceeds 128 KiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body is not application/json */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    startExistingSandbox: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Account-scoped replay key. Use 1–255 visible ASCII characters. Repeating the same canonical request within 24 hours replays the original response; using the key for a different public mutation returns IDEMPOTENCY_CONFLICT. */
+                "Idempotency-Key"?: components["parameters"]["IdempotencyKey"];
+            };
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StartSandboxRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sandbox: components["schemas"]["Sandbox"];
+                    };
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description BoxCompute credit is exhausted */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body exceeds 128 KiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body is not application/json */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    reconnectCooperativeConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+                endpointId: components["schemas"]["CooperativeEndpointId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CooperativeConnectionKeys"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CooperativeEnvelope"];
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body exceeds 128 KiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body is not application/json */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    revokeCooperativeConnection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+                endpointId: components["schemas"]["CooperativeEndpointId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CooperativeRevoke"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1237,6 +2044,15 @@ export interface operations {
             };
             /** @description Missing or invalid API key */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description BoxCompute credit is exhausted */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1629,6 +2445,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description BoxCompute credit is exhausted */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description API key lacks the required scope */
             403: {
                 headers: {
@@ -1735,6 +2560,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description BoxCompute credit is exhausted */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description API key lacks the required scope */
             403: {
                 headers: {
@@ -1827,6 +2661,15 @@ export interface operations {
             };
             /** @description Missing or invalid API key */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description BoxCompute credit is exhausted */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1937,6 +2780,15 @@ export interface operations {
             };
             /** @description Missing or invalid API key */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description BoxCompute credit is exhausted */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2061,6 +2913,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description BoxCompute credit is exhausted */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description API key lacks the required scope */
             403: {
                 headers: {
@@ -2153,6 +3014,15 @@ export interface operations {
             };
             /** @description Missing or invalid API key */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description BoxCompute credit is exhausted */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2268,6 +3138,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description BoxCompute credit is exhausted */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description API key lacks the required scope */
             403: {
                 headers: {
@@ -2367,6 +3246,15 @@ export interface operations {
             };
             /** @description Missing or invalid API key */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description BoxCompute credit is exhausted */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };

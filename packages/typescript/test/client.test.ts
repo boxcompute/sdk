@@ -165,4 +165,46 @@ describe("BoxCompute", () => {
       overwrite: false,
     });
   });
+
+  it("creates VM sandboxes with runtime fields and accepts pending responses", async () => {
+    const requests: Array<{ init: RequestInit | undefined }> = [];
+    const client = new BoxCompute({
+      apiKey: "bc_live_test",
+      fetch: async (_input, init) => {
+        requests.push({ init });
+        return json(
+          { sandbox: { id: "sbx_vm", workspaceId: "ws_1", state: "pending", vmSandbox: true } },
+          202,
+        );
+      },
+    });
+
+    const sandbox = await client.sandboxes.create({
+      workspaceId: "ws_1",
+      vmSandbox: true,
+      blockNetwork: true,
+      idempotencyKey: "vm-create-1",
+    });
+    expect(sandbox).toMatchObject({ id: "sbx_vm", state: "pending", vmSandbox: true });
+    expect(JSON.parse(String(requests[0]?.init?.body))).toEqual({
+      workspaceId: "ws_1",
+      vmSandbox: true,
+      blockNetwork: true,
+    });
+    expect(new Headers(requests[0]?.init?.headers).get("idempotency-key")).toBe("vm-create-1");
+  });
+
+  it("omits the runtime field when the caller relies on the server default", async () => {
+    let body: unknown;
+    const client = new BoxCompute({
+      apiKey: "bc_live_test",
+      fetch: async (_input, init) => {
+        body = JSON.parse(String(init?.body));
+        return json({ sandbox: { id: "sbx_default", workspaceId: "ws_1", state: "pending", vmSandbox: true } }, 202);
+      },
+    });
+
+    await client.sandboxes.create({ workspaceId: "ws_1" });
+    expect(body).toEqual({ workspaceId: "ws_1" });
+  });
 });

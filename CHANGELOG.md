@@ -5,6 +5,24 @@ version independently; each entry names the affected package and version.
 
 ## Unreleased
 
+### `@boxcompute/sdk`
+
+- Synced the bundled OpenAPI contract with the public v2 API: `vmSandbox`
+  (omitted or true selects the VM runtime; false selects gVisor) and
+  `blockNetwork` on sandbox creates, `pending`/`expired` sandbox states, and
+  the `INSUFFICIENT_CREDIT` / `BILLING_ACCOUNT_FROZEN` error codes.
+- `sandboxes.create` now accepts 202 pending responses and exposes the
+  runtime fields; `vmSandbox` stays optional in the TypeScript surface so
+  callers can rely on the server default.
+
+### `boxcompute`
+
+- Synced the generated Pydantic models with the same contract (runtime
+  fields, `pending`/`expired` states, billing error codes).
+- `sandboxes.create` (sync and async) accepts `vm_sandbox` and
+  `block_network` keyword arguments, omitted from the request body when not
+  set so the server default applies.
+
 ## SDK release 2026-09-09
 
 ### `@boxcompute/sdk` 0.1.1

@@ -5,7 +5,9 @@ version independently; each entry names the affected package and version.
 
 ## Unreleased
 
-### `@boxcompute/sdk`
+## SDK release 2026-09-17
+
+### `@boxcompute/sdk` 0.2.0
 
 - Synced the bundled OpenAPI contract with the public v2 API: `vmSandbox`
   (omitted or true selects the VM runtime; false selects gVisor) and
@@ -15,7 +17,7 @@ version independently; each entry names the affected package and version.
   runtime fields; `vmSandbox` stays optional in the TypeScript surface so
   callers can rely on the server default.
 
-### `boxcompute`
+### `boxcompute` 0.2.0
 
 - Synced the generated Pydantic models with the same contract (runtime
   fields, `pending`/`expired` states, billing error codes).

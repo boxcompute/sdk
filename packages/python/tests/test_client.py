@@ -41,7 +41,10 @@ def test_sends_idempotency_key_outside_json() -> None:
 def test_creates_vm_sandboxes_and_accepts_pending_responses() -> None:
     def handler(request: httpx.Request) -> httpx.Response:
         assert request.headers["idempotency-key"] == "vm-create-1"
-        assert request.read() == b'{"workspaceId":"ws_1","vmSandbox":true,"blockNetwork":true}'
+        assert (
+            request.read()
+            == b'{"workspaceId":"ws_1","vmSandbox":true,"blockNetwork":true,"size":"large"}'
+        )
         return httpx.Response(
             202,
             json={
@@ -65,6 +68,7 @@ def test_creates_vm_sandboxes_and_accepts_pending_responses() -> None:
         workspace_id="ws_1",
         vm_sandbox=True,
         block_network=True,
+        size="large",
         idempotency_key="vm-create-1",
     )
     assert sandbox.id == "sbx_vm"
@@ -96,6 +100,32 @@ def test_omits_runtime_fields_when_caller_uses_server_default() -> None:
     boxcompute = BoxCompute(api_key="bc_live_test", http_client=http)
     sandbox = boxcompute.sandboxes.create(workspace_id="ws_1")
     assert sandbox.vm_sandbox is True
+
+
+def test_sends_explicit_small_size_selector() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.read() == b'{"workspaceId":"ws_1","size":"small"}'
+        return httpx.Response(
+            202,
+            json={
+                "sandbox": {
+                    "id": "sbx_small",
+                    "workspaceId": "ws_1",
+                    "name": "small",
+                    "createdAt": 1,
+                    "lastUsedAt": 1,
+                    "state": "pending",
+                    "vmSandbox": True,
+                }
+            },
+        )
+
+    http = httpx.Client(
+        base_url="https://api.boxcompute.ai", transport=httpx.MockTransport(handler)
+    )
+    boxcompute = BoxCompute(api_key="bc_live_test", http_client=http)
+    sandbox = boxcompute.sandboxes.create(workspace_id="ws_1", size="small")
+    assert sandbox.id == "sbx_small"
 
 
 def test_maps_api_errors() -> None:

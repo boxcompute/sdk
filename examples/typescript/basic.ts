@@ -12,6 +12,7 @@ const workspace = existingWorkspace ?? await boxcompute.workspaces.create({
 
 const sandbox = await boxcompute.sandboxes.create({
   workspaceId: workspace.id,
+  size: "large",
   idempotencyKey: crypto.randomUUID(),
 });
 try {

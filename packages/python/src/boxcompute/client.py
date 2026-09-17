@@ -189,6 +189,7 @@ class Sandboxes:
         name: str | None = None,
         vm_sandbox: bool | None = None,
         block_network: bool | None = None,
+        size: Literal["small", "large"] | None = None,
         idempotency_key: str | None = None,
     ) -> Sandbox:
         body: dict[str, Any] = {
@@ -199,6 +200,8 @@ class Sandboxes:
             body["vmSandbox"] = vm_sandbox
         if block_network is not None:
             body["blockNetwork"] = block_network
+        if size is not None:
+            body["size"] = size
         headers = {"idempotency-key": idempotency_key} if idempotency_key else None
         data = self._transport.request(
             "POST", "/api/v2/sandboxes", headers=headers, json=body
@@ -278,6 +281,7 @@ class AsyncSandboxes:
         name: str | None = None,
         vm_sandbox: bool | None = None,
         block_network: bool | None = None,
+        size: Literal["small", "large"] | None = None,
         idempotency_key: str | None = None,
     ) -> Sandbox:
         body: dict[str, Any] = {
@@ -288,6 +292,8 @@ class AsyncSandboxes:
             body["vmSandbox"] = vm_sandbox
         if block_network is not None:
             body["blockNetwork"] = block_network
+        if size is not None:
+            body["size"] = size
         headers = {"idempotency-key": idempotency_key} if idempotency_key else None
         data = (
             await self._transport.request("POST", "/api/v2/sandboxes", headers=headers, json=body)

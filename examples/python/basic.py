@@ -16,6 +16,7 @@ with BoxCompute(api_key=os.environ["BOXCOMPUTE_API_KEY"]) as boxcompute:
 
     sandbox = boxcompute.sandboxes.create(
         workspace_id=workspace.id,
+        size="large",
         idempotency_key=str(uuid.uuid4()),
     )
     try:

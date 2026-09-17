@@ -183,6 +183,7 @@ describe("BoxCompute", () => {
       workspaceId: "ws_1",
       vmSandbox: true,
       blockNetwork: true,
+      size: "large",
       idempotencyKey: "vm-create-1",
     });
     expect(sandbox).toMatchObject({ id: "sbx_vm", state: "pending", vmSandbox: true });
@@ -190,11 +191,12 @@ describe("BoxCompute", () => {
       workspaceId: "ws_1",
       vmSandbox: true,
       blockNetwork: true,
+      size: "large",
     });
     expect(new Headers(requests[0]?.init?.headers).get("idempotency-key")).toBe("vm-create-1");
   });
 
-  it("omits the runtime field when the caller relies on the server default", async () => {
+  it("omits the runtime and size fields when the caller relies on the server default", async () => {
     let body: unknown;
     const client = new BoxCompute({
       apiKey: "bc_live_test",
@@ -206,5 +208,19 @@ describe("BoxCompute", () => {
 
     await client.sandboxes.create({ workspaceId: "ws_1" });
     expect(body).toEqual({ workspaceId: "ws_1" });
+  });
+
+  it("sends an explicit small size selector", async () => {
+    let body: unknown;
+    const client = new BoxCompute({
+      apiKey: "bc_live_test",
+      fetch: async (_input, init) => {
+        body = JSON.parse(String(init?.body));
+        return json({ sandbox: { id: "sbx_small", workspaceId: "ws_1", state: "pending", vmSandbox: true } }, 202);
+      },
+    });
+
+    await client.sandboxes.create({ workspaceId: "ws_1", size: "small" });
+    expect(body).toEqual({ workspaceId: "ws_1", size: "small" });
   });
 });

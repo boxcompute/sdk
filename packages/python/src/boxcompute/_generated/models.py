@@ -173,6 +173,11 @@ class Sandbox(BaseModel):
     last_used_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='lastUsedAt')
 
 
+class Size(Enum):
+    small = 'small'
+    large = 'large'
+
+
 class CreateSandboxRequest(BaseModel):
     model_config = ConfigDict(
         extra='ignore',
@@ -189,6 +194,10 @@ class CreateSandboxRequest(BaseModel):
     block_network: bool | None = Field(None, alias='blockNetwork')
     """
     VM only: defaults to false (Internet) for new requests; true selects no NIC. Ignored for non-VM sandboxes. Historical idempotency replays retain their original blocked intent.
+    """
+    size: Size | None = 'small'
+    """
+    VM only: compute size tier. Omitted or "small" selects 0.5 vCPU and 1024 MiB; "large" selects 1.5 vCPU and 3072 MiB (3x small). The workspace stays 10 GiB. Ignored for non-VM sandboxes. Historical idempotency replays retain their original size.
     """
 
 

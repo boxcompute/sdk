@@ -552,6 +552,12 @@ export interface components {
             vmSandbox: boolean;
             /** @description VM only: defaults to false (Internet) for new requests; true selects no NIC. Ignored for non-VM sandboxes. Historical idempotency replays retain their original blocked intent. */
             blockNetwork?: boolean;
+            /**
+             * @description VM only: compute size tier. Omitted or "small" selects 0.5 vCPU and 1024 MiB; "large" selects 1.5 vCPU and 3072 MiB (3x small). The workspace stays 10 GiB. Ignored for non-VM sandboxes. Historical idempotency replays retain their original size.
+             * @default small
+             * @enum {string}
+             */
+            size: "small" | "large";
         } & {
             [key: string]: unknown;
         };

@@ -33,3 +33,27 @@ groups. Python offers synchronous `BoxCompute` and asynchronous
 All file paths must be `/workspace` or a descendant. Identifiers are URL
 encoded by the SDKs. Mutation retries must follow the rules in
 [idempotency.md](idempotency.md).
+
+## VM sandbox sizing
+
+`sandboxes.create()` accepts VM-only runtime options. `vmSandbox` defaults to
+`true` (VM runtime); `false` selects a gVisor container sandbox. `blockNetwork`
+defaults to `false` (Internet) and `true` selects a sandbox without a NIC.
+
+`size` selects the VM compute tier and defaults to `"small"`:
+
+| `size` | vCPU | Memory | Workspace |
+| --- | --- | --- | --- |
+| `"small"` | 0.5 | 1024 MiB | 10 GiB |
+| `"large"` | 1.5 | 3072 MiB | 10 GiB |
+
+`large` is 3x `small` and the workspace size does not change. `size` is
+VM-only; omit it (or pass `"small"`) to use the default.
+
+```ts
+await boxcompute.sandboxes.create({ workspaceId, size: "large", idempotencyKey });
+```
+
+```python
+boxcompute.sandboxes.create(workspace_id=workspace_id, size="large", idempotency_key=key)
+```

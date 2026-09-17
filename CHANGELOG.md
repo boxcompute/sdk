@@ -5,6 +5,19 @@ version independently; each entry names the affected package and version.
 
 ## Unreleased
 
+### `@boxcompute/sdk`
+
+- Added the VM `size` selector to `sandboxes.create`: `"small"` (default, 0.5
+  vCPU / 1024 MiB) or `"large"` (1.5 vCPU / 3072 MiB). The workspace stays
+  10 GiB. `size` is VM-only and omitted from the request body when unset so the
+  server default applies.
+
+### `boxcompute`
+
+- Added the `size` keyword argument to `sandboxes.create` (sync and async) with
+  the same `"small"`/`"large"` contract; omitted from the request body when not
+  set.
+
 ## SDK release 2026-09-17
 
 ### `@boxcompute/sdk` 0.2.0

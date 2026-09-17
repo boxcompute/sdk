@@ -54,7 +54,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {
-    "@types/node": "^26.4.1",
+    "@types/node": "^26.5.1",
     "oxlint": "^1.80.0",
     "tsup": "^8.5.0",
     "typescript": "^7.0.2",

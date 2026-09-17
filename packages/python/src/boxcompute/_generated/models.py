@@ -5,7 +5,7 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict
+from typing import Any, Dict, Literal
 
 from pydantic import (
     AwareDatetime,
@@ -19,10 +19,88 @@ from pydantic import (
 )
 
 
+class StartSandboxRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+
+
+class Port(RootModel[conint(ge=1, le=65535)]):
+    root: conint(ge=1, le=65535)
+
+
+class ServiceAccessRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+        regex_engine="python-re",
+    )
+    requested_at: conint(le=9007199254740991, gt=0)
+    client_key: constr(pattern=r'^nodekey:(?!0{64}$)[a-f0-9]{64}$')
+    recipient_key: constr(pattern=r'^[A-Za-z0-9+/]{43}=$')
+    ports: list[Port] = Field(..., max_length=8, min_length=1)
+
+
+class ServiceAccessId(
+    RootModel[constr(pattern=r'^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$')]
+):
+    root: constr(pattern=r'^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$')
+
+
+class ServiceAccessEnvelope(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    generation_id: constr(pattern=r'^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$')
+    expires_at: conint(le=9007199254740991, gt=0)
+    sealed: constr(min_length=80, max_length=16000)
+
+
+class ServiceAccessRevoke(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    generation_id: str
+    cleanup: Literal['guardian-confirmed']
+
+
+class CooperativeConnectionKeys(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+        regex_engine="python-re",
+    )
+    client_key: constr(pattern=r'^nodekey:(?!0{64}$)[a-f0-9]{64}$')
+    ssh_key: constr(pattern=r'^ssh-ed25519 [A-Za-z0-9+/]{68}$')
+    recipient_key: constr(pattern=r'^[A-Za-z0-9+/]{43}=$')
+
+
+class CooperativeEndpointId(ServiceAccessId):
+    pass
+
+
+class CooperativeEnvelope(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    endpoint_id: constr(pattern=r'^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$')
+    expires_at: conint(le=9007199254740991, gt=0)
+    sealed: constr(pattern=r'^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$', min_length=80, max_length=16000)
+
+
+class CooperativeRevoke(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    endpoint_id: str
+    cleanup: Literal['unconfirmed']
+
+
 class Code(Enum):
     authentication_required = 'AUTHENTICATION_REQUIRED'
     invalid_api_key = 'INVALID_API_KEY'
     insufficient_scope = 'INSUFFICIENT_SCOPE'
+    insufficient_credit = 'INSUFFICIENT_CREDIT'
+    billing_account_frozen = 'BILLING_ACCOUNT_FROZEN'
+    feature_access_denied = 'FEATURE_ACCESS_DENIED'
     invalid_request = 'INVALID_REQUEST'
     invalid_path = 'INVALID_PATH'
     invalid_range = 'INVALID_RANGE'
@@ -73,7 +151,9 @@ class CreateWorkspaceRequest(BaseModel):
 
 class State(Enum):
     cold = 'cold'
+    pending = 'pending'
     running = 'running'
+    expired = 'expired'
 
 
 class Sandbox(BaseModel):
@@ -84,6 +164,11 @@ class Sandbox(BaseModel):
     workspace_id: str = Field(..., alias='workspaceId')
     name: str
     state: State
+    vm_sandbox: bool = Field(..., alias='vmSandbox')
+    block_network: bool | None = Field(None, alias='blockNetwork')
+    """
+    Immutable VM network intent: true means no NIC; false means Internet. Omitted for non-VM sandboxes and historical replay responses.
+    """
     created_at: conint(ge=0, le=9007199254740991) = Field(..., alias='createdAt')
     last_used_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='lastUsedAt')
 
@@ -97,6 +182,14 @@ class CreateSandboxRequest(BaseModel):
     }
     workspace_id: constr(pattern=r'\S', min_length=1) = Field(..., alias='workspaceId')
     name: constr(pattern=r'\S', min_length=1, max_length=80) | None = None
+    vm_sandbox: bool | None = Field(True, alias='vmSandbox')
+    """
+    Runtime selection. Omitted or true creates a VM sandbox (fixed image; no volumes, libraries or image override); false creates a gVisor container sandbox. An explicit vmSandbox:true requires an Idempotency-Key header; an omitted vmSandbox may create keyless, in which case the server generates the key. Historical idempotency replays retain their original runtime.
+    """
+    block_network: bool | None = Field(None, alias='blockNetwork')
+    """
+    VM only: defaults to false (Internet) for new requests; true selects no NIC. Ignored for non-VM sandboxes. Historical idempotency replays retain their original blocked intent.
+    """
 
 
 class ArgvItem(RootModel[constr(min_length=1, max_length=8192)]):

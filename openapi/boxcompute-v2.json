@@ -295,6 +295,7 @@
         "x-boxcompute-required-scope": "sandbox:create",
         "operationId": "createSandbox",
         "summary": "Create and start a Sandbox in an owned workspace",
+        "description": "VM Sandboxes require Idempotency-Key and return promptly as pending while durable reconciliation provisions the fixed VM profile. Reuse the same key to recover the same public Sandbox; replay returns 202 while pending and 201 once ready.",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -329,6 +330,24 @@
               }
             }
           },
+          "202": {
+            "description": "VM Sandbox durably accepted and pending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "sandbox"
+                  ],
+                  "properties": {
+                    "sandbox": {
+                      "$ref": "#/components/schemas/Sandbox"
+                    }
+                  }
+                }
+              }
+            }
+          },
           "400": {
             "description": "Invalid request",
             "content": {
@@ -341,6 +360,16 @@
           },
           "401": {
             "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -779,6 +808,16 @@
               }
             }
           },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "403": {
             "description": "API key lacks the required scope",
             "content": {
@@ -821,6 +860,831 @@
           },
           "415": {
             "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/sandboxes/{id}/services": {
+      "post": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:execute",
+        "operationId": "createServiceAccess",
+        "summary": "Create selected TCP access on an operator-pinned active runtime (default off)",
+        "description": "Required UUIDv4 Idempotency-Key and immutable requested_at. One retained client, 1–8 strictly ascending unique ports, exact requested_at+300 expiry. No provisioning or mutation retry. Returns only a sealed capability.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ServiceAccessId"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceAccessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceAccessEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 128 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/sandboxes/{id}/services/lookup": {
+      "post": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:execute",
+        "operationId": "lookupServiceAccess",
+        "summary": "Recover the original live service envelope without renewal",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ServiceAccessId"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServiceAccessRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceAccessEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 128 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/sandboxes/{id}/services/{generationId}": {
+      "delete": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:execute",
+        "operationId": "revokeServiceAccess",
+        "summary": "Revoke the exact service generation",
+        "description": "Guardian-confirmed is an authenticated daemon response, not independent physical-stop proof. Uncertain cleanup returns an error, never success.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          },
+          {
+            "name": "generationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/ServiceAccessId"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServiceAccessRevoke"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 128 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/sandboxes/{id}/cooperative-connection": {
+      "post": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:execute",
+        "operationId": "activateCooperativeConnection",
+        "summary": "Activate the operator-selected cooperative SSH MVP (default off)",
+        "description": "Existing owned active runtime only. One nonrenewable grant of at most 30 seconds; no provisioning, retry or physical-stop guarantee.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CooperativeConnectionKeys"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CooperativeEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 128 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/sandboxes/{id}/start": {
+      "post": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:create",
+        "operationId": "startExistingSandbox",
+        "summary": "Start an existing owned Sandbox slot",
+        "description": "No slot allocation or caller-selected image. Reuses its current runtime; operator-selected cooperative slots cannot restore sleeping or terminal runtimes.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StartSandboxRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "sandbox"
+                  ],
+                  "properties": {
+                    "sandbox": {
+                      "$ref": "#/components/schemas/Sandbox"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 128 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/sandboxes/{id}/cooperative-connection/{endpointId}": {
+      "post": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:execute",
+        "operationId": "reconnectCooperativeConnection",
+        "summary": "Return the unchanged original envelope for the same keys",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          },
+          {
+            "name": "endpointId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/CooperativeEndpointId"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CooperativeConnectionKeys"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CooperativeEnvelope"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 128 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:execute",
+        "operationId": "revokeCooperativeConnection",
+        "summary": "Request best-effort cooperative cleanup; always unconfirmed",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          },
+          {
+            "name": "endpointId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/CooperativeEndpointId"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CooperativeRevoke"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -901,6 +1765,16 @@
           },
           "401": {
             "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -1465,6 +2339,16 @@
               }
             }
           },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "403": {
             "description": "API key lacks the required scope",
             "content": {
@@ -1659,6 +2543,16 @@
               }
             }
           },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "403": {
             "description": "API key lacks the required scope",
             "content": {
@@ -1781,6 +2675,16 @@
           },
           "401": {
             "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -1926,6 +2830,16 @@
           },
           "401": {
             "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -2100,6 +3014,16 @@
               }
             }
           },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "403": {
             "description": "API key lacks the required scope",
             "content": {
@@ -2221,6 +3145,16 @@
           },
           "401": {
             "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -2361,6 +3295,16 @@
           },
           "401": {
             "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -2514,6 +3458,16 @@
           },
           "401": {
             "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "BoxCompute credit is exhausted",
             "content": {
               "application/json": {
                 "schema": {
@@ -2696,6 +3650,162 @@
       }
     },
     "schemas": {
+      "StartSandboxRequest": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "ServiceAccessRequest": {
+        "type": "object",
+        "properties": {
+          "requested_at": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "client_key": {
+            "type": "string",
+            "pattern": "^nodekey:(?!0{64}$)[a-f0-9]{64}$"
+          },
+          "recipient_key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9+/]{43}=$"
+          },
+          "ports": {
+            "minItems": 1,
+            "maxItems": 8,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 65535
+            }
+          }
+        },
+        "required": [
+          "requested_at",
+          "client_key",
+          "recipient_key",
+          "ports"
+        ],
+        "additionalProperties": false
+      },
+      "ServiceAccessId": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+      },
+      "ServiceAccessEnvelope": {
+        "type": "object",
+        "properties": {
+          "generation_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+          },
+          "expires_at": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "sealed": {
+            "type": "string",
+            "minLength": 80,
+            "maxLength": 16000
+          }
+        },
+        "required": [
+          "generation_id",
+          "expires_at",
+          "sealed"
+        ],
+        "additionalProperties": false
+      },
+      "ServiceAccessRevoke": {
+        "type": "object",
+        "properties": {
+          "generation_id": {
+            "type": "string"
+          },
+          "cleanup": {
+            "type": "string",
+            "const": "guardian-confirmed"
+          }
+        },
+        "required": [
+          "generation_id",
+          "cleanup"
+        ],
+        "additionalProperties": false
+      },
+      "CooperativeConnectionKeys": {
+        "type": "object",
+        "properties": {
+          "client_key": {
+            "type": "string",
+            "pattern": "^nodekey:(?!0{64}$)[a-f0-9]{64}$"
+          },
+          "ssh_key": {
+            "type": "string",
+            "pattern": "^ssh-ed25519 [A-Za-z0-9+/]{68}$"
+          },
+          "recipient_key": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9+/]{43}=$"
+          }
+        },
+        "required": [
+          "client_key",
+          "ssh_key",
+          "recipient_key"
+        ],
+        "additionalProperties": false
+      },
+      "CooperativeEndpointId": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+      },
+      "CooperativeEnvelope": {
+        "type": "object",
+        "properties": {
+          "endpoint_id": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+          },
+          "expires_at": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "sealed": {
+            "type": "string",
+            "minLength": 80,
+            "maxLength": 16000,
+            "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$"
+          }
+        },
+        "required": [
+          "endpoint_id",
+          "expires_at",
+          "sealed"
+        ],
+        "additionalProperties": false
+      },
+      "CooperativeRevoke": {
+        "type": "object",
+        "properties": {
+          "endpoint_id": {
+            "type": "string"
+          },
+          "cleanup": {
+            "type": "string",
+            "const": "unconfirmed"
+          }
+        },
+        "required": [
+          "endpoint_id",
+          "cleanup"
+        ],
+        "additionalProperties": false
+      },
       "Error": {
         "type": "object",
         "properties": {
@@ -2705,6 +3815,9 @@
               "AUTHENTICATION_REQUIRED",
               "INVALID_API_KEY",
               "INSUFFICIENT_SCOPE",
+              "INSUFFICIENT_CREDIT",
+              "BILLING_ACCOUNT_FROZEN",
+              "FEATURE_ACCESS_DENIED",
               "INVALID_REQUEST",
               "INVALID_PATH",
               "INVALID_RANGE",
@@ -2789,8 +3902,17 @@
             "type": "string",
             "enum": [
               "cold",
-              "running"
+              "pending",
+              "running",
+              "expired"
             ]
+          },
+          "vmSandbox": {
+            "type": "boolean"
+          },
+          "blockNetwork": {
+            "description": "Immutable VM network intent: true means no NIC; false means Internet. Omitted for non-VM sandboxes and historical replay responses.",
+            "type": "boolean"
           },
           "createdAt": {
             "type": "integer",
@@ -2815,6 +3937,7 @@
           "workspaceId",
           "name",
           "state",
+          "vmSandbox",
           "createdAt",
           "lastUsedAt"
         ],
@@ -2833,6 +3956,15 @@
             "minLength": 1,
             "maxLength": 80,
             "pattern": "\\S"
+          },
+          "vmSandbox": {
+            "default": true,
+            "description": "Runtime selection. Omitted or true creates a VM sandbox (fixed image; no volumes, libraries or image override); false creates a gVisor container sandbox. An explicit vmSandbox:true requires an Idempotency-Key header; an omitted vmSandbox may create keyless, in which case the server generates the key. Historical idempotency replays retain their original runtime.",
+            "type": "boolean"
+          },
+          "blockNetwork": {
+            "description": "VM only: defaults to false (Internet) for new requests; true selects no NIC. Ignored for non-VM sandboxes. Historical idempotency replays retain their original blocked intent.",
+            "type": "boolean"
           }
         },
         "required": [

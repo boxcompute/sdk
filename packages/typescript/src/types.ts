@@ -13,7 +13,15 @@ export type SandboxLogs = components["schemas"]["SandboxLogs"];
 export type Usage = components["schemas"]["Usage"];
 export type ApiErrorBody = components["schemas"]["Error"];
 export type CreateWorkspaceRequest = components["schemas"]["CreateWorkspaceRequest"];
-export type CreateSandboxRequest = components["schemas"]["CreateSandboxRequest"];
+/**
+ * The contract marks vmSandbox as defaulted, which the TypeScript generator
+ * renders as required. The server accepts an omitted vmSandbox (it selects the
+ * VM runtime by default), so the hand-written surface keeps the field optional
+ * to match the documented request behavior and the Python client.
+ */
+export type CreateSandboxRequest = Omit<components["schemas"]["CreateSandboxRequest"], "vmSandbox"> & {
+    vmSandbox?: boolean;
+};
 export type StartOperationRequest = components["schemas"]["StartOperationRequest"];
 export type WaitOperationRequest = components["schemas"]["WaitOperationRequest"];
 export type EditFileRequest = components["schemas"]["EditFileRequest"];

@@ -191,7 +191,7 @@ class Sandboxes:
         block_network: bool | None = None,
         idempotency_key: str | None = None,
     ) -> Sandbox:
-        body = {"workspaceId": workspace_id, **({"name": name} if name is not None else {})}
+        body: dict[str, Any] = {"workspaceId": workspace_id, **({"name": name} if name is not None else {})}
         if vm_sandbox is not None:
             body["vmSandbox"] = vm_sandbox
         if block_network is not None:
@@ -277,7 +277,7 @@ class AsyncSandboxes:
         block_network: bool | None = None,
         idempotency_key: str | None = None,
     ) -> Sandbox:
-        body = {"workspaceId": workspace_id, **({"name": name} if name is not None else {})}
+        body: dict[str, Any] = {"workspaceId": workspace_id, **({"name": name} if name is not None else {})}
         if vm_sandbox is not None:
             body["vmSandbox"] = vm_sandbox
         if block_network is not None:

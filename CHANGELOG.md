@@ -5,6 +5,21 @@ version independently; each entry names the affected package and version.
 
 ## Unreleased
 
+### `@boxcompute/sdk` 0.3.0
+
+- Added the selected-TCP service-access session (ADR 0037, display-v1):
+  `openServices(api, mappings, signal?, options?)` runs the native
+  `service-client` over a strict stdin/stdout handshake,
+  `unsealServices(response, recipientKey, request)` decrypts and validates the
+  X25519/HKDF("boxcompute-connection-v1")/AES-256-GCM grant envelope, and
+  `BoxComputePublicServiceClient` composes the public HTTPS service paths
+  (`api/v2/sandboxes/{slotId}/services`) with revoke-on-close semantics.
+- The native binary is never bundled in this package: it resolves through the
+  `BOXCOMPUTE_SERVICE_CLIENT` environment variable or a digest-pinned GitHub
+  release asset (`SERVICE_CLIENT_RELEASE`, sha256-verified into a per-user
+  cache). Release asset pins are `null` until published; set
+  `BOXCOMPUTE_SERVICE_CLIENT` to point at an existing binary.
+
 ### `@boxcompute/sdk`
 
 - Added the VM `size` selector to `sandboxes.create`: `"small"` (default, 0.5

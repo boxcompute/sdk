@@ -223,4 +223,108 @@ describe("BoxCompute", () => {
     await client.sandboxes.create({ workspaceId: "ws_1", size: "small" });
     expect(body).toEqual({ workspaceId: "ws_1", size: "small" });
   });
+  it("reads identity, audit, cost, and analytics routes with encoded filters", async () => {
+    const calls: Array<{ url: string; method: string | undefined }> = [];
+    const responses: unknown[] = [
+      { account: { id: "acct_1" }, apiKey: { id: "key_1" } },
+      { events: [{ id: "evt_1" }], nextCursor: "cur_2" },
+      { costs: { currency: "USD", sandboxes: [] } },
+      { costs: { runs: [], running: [], truncated: false } },
+      { analytics: { sandboxId: "sbx_1", operations: [] } },
+    ];
+    const client = new BoxCompute({
+      apiKey: "bc_live_test",
+      fetch: async (input, init) => {
+        calls.push({ url: String(input), method: init?.method });
+        return json(responses.shift());
+      },
+    });
+
+    await expect(client.me.get()).resolves.toEqual({
+      account: { id: "acct_1" },
+      apiKey: { id: "key_1" },
+    });
+    await expect(client.auditEvents.list({
+      type: "api.request",
+      outcome: "error",
+      before: "cur/1",
+      limit: 20,
+    })).resolves.toEqual({ events: [{ id: "evt_1" }], nextCursor: "cur_2" });
+    await expect(client.costs.sandboxes({ apiKeyId: "none", from: "2026-10-01T00:00:00Z" }))
+      .resolves.toEqual({ currency: "USD", sandboxes: [] });
+    await expect(client.sandboxes.costs("sbx/1")).resolves.toEqual({
+      runs: [],
+      running: [],
+      truncated: false,
+    });
+    await expect(client.sandboxes.analytics("sbx_1", { resolutionSeconds: 60, generation: 2 }))
+      .resolves.toEqual({ sandboxId: "sbx_1", operations: [] });
+
+    expect(calls.map((call) => call.url)).toEqual([
+      "https://api.boxcompute.ai/api/v2/me",
+      "https://api.boxcompute.ai/api/v2/audit-events?type=api.request&outcome=error&before=cur%2F1&limit=20",
+      "https://api.boxcompute.ai/api/v2/costs/sandboxes?apiKeyId=none&from=2026-10-01T00%3A00%3A00Z",
+      "https://api.boxcompute.ai/api/v2/sandboxes/sbx%2F1/costs",
+      "https://api.boxcompute.ai/api/v2/sandboxes/sbx_1/analytics?resolutionSeconds=60&generation=2",
+    ]);
+    expect(calls.every((call) => call.method === "GET")).toBe(true);
+  });
+
+  it("lists deleted sandboxes and reads their retained logs and costs", async () => {
+    const urls: string[] = [];
+    const responses: unknown[] = [
+      { deletedSandboxes: [{ id: "dsb_1", sandboxId: "sbx_1" }] },
+      { logs: { sandboxId: "sbx_1", entries: [] } },
+      { costs: { runs: [{ id: "run_1" }], running: [], truncated: false } },
+    ];
+    const client = new BoxCompute({
+      apiKey: "bc_live_test",
+      fetch: async (input) => {
+        urls.push(String(input));
+        return json(responses.shift());
+      },
+    });
+
+    await expect(client.deletedSandboxes.list()).resolves.toEqual([
+      { id: "dsb_1", sandboxId: "sbx_1" },
+    ]);
+    await expect(client.deletedSandboxes.logs("dsb_1", { runtime: "rt_1", stream: "stderr" }))
+      .resolves.toEqual({ sandboxId: "sbx_1", entries: [] });
+    await expect(client.deletedSandboxes.costs("dsb_1")).resolves.toEqual({
+      runs: [{ id: "run_1" }],
+      running: [],
+      truncated: false,
+    });
+    expect(urls).toEqual([
+      "https://api.boxcompute.ai/api/v2/deleted-sandboxes",
+      "https://api.boxcompute.ai/api/v2/deleted-sandboxes/dsb_1/logs?runtime=rt_1&stream=stderr",
+      "https://api.boxcompute.ai/api/v2/deleted-sandboxes/dsb_1/costs",
+    ]);
+  });
+
+  it("creates and closes browser previews", async () => {
+    const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+    const preview = {
+      previewId: "prv_1",
+      sandboxId: "sbx_1",
+      port: 3000,
+      url: "https://prv-1.bxcpreview.com",
+      expiresAt: "2026-10-07T13:00:00.000Z",
+    };
+    const client = new BoxCompute({
+      apiKey: "bc_live_test",
+      fetch: async (input, init) => {
+        calls.push({ url: String(input), init });
+        return init?.method === "DELETE" ? new Response(null, { status: 204 }) : json({ preview }, 201);
+      },
+    });
+
+    await expect(client.previews.create("sbx_1", { port: 3000 })).resolves.toEqual(preview);
+    await expect(client.previews.close("sbx_1", "prv_1")).resolves.toBeUndefined();
+    expect(calls.map((call) => [call.init?.method, call.url])).toEqual([
+      ["POST", "https://api.boxcompute.ai/api/v2/sandboxes/sbx_1/previews"],
+      ["DELETE", "https://api.boxcompute.ai/api/v2/sandboxes/sbx_1/previews/prv_1"],
+    ]);
+    expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ port: 3000 });
+  });
 });

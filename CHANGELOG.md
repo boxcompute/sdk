@@ -3,20 +3,33 @@
 All notable SDK changes are documented here. The TypeScript and Python packages
 version independently; each entry names the affected package and version.
 
-## Unreleased
+## SDK release 2026-10-07
 
-### `@boxcompute/sdk`
+### `@boxcompute/sdk` 0.3.0
 
+- Synced the bundled OpenAPI contract with the public v2 API as served on
+  2026-10-07 (41 operations).
 - Added the VM `size` selector to `sandboxes.create`: `"small"` (default, 0.5
-  vCPU / 1024 MiB) or `"large"` (1.5 vCPU / 3072 MiB). The workspace stays
-  10 GiB. `size` is VM-only and omitted from the request body when unset so the
-  server default applies.
+  vCPU / 1024 MiB) or `"large"` (1.5 vCPU / 3072 MiB). Both use a 30 GiB
+  workspace. `size` is VM-only and omitted from the request body when unset so
+  the server default applies. `Sandbox.size` reports the created profile.
+- New resources: `me.get()`, `auditEvents.list()`, `costs.sandboxes()`,
+  `deletedSandboxes.list()` / `.logs()` / `.costs()`, and
+  `previews.create()` / `.close()`. `sandboxes` gains `analytics()` and
+  `costs()`.
+- The contract adds the `RATE_LIMITED` error code and documents `429` when an
+  account's Sandbox count or storage limit refuses a create or start.
 
-### `boxcompute`
+### `boxcompute` 0.3.0
 
+- Synced the generated Pydantic models with the same contract.
 - Added the `size` keyword argument to `sandboxes.create` (sync and async) with
   the same `"small"`/`"large"` contract; omitted from the request body when not
   set.
+- New resources on both `BoxCompute` and `AsyncBoxCompute`: `me`,
+  `audit_events`, `costs`, `deleted_sandboxes`, and `previews`, plus
+  `sandboxes.analytics()` and `sandboxes.costs()`. The `from` query parameter
+  is spelled `from_`.
 
 ## SDK release 2026-09-17
 

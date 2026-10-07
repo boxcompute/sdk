@@ -71,6 +71,51 @@
         }
       }
     },
+    "/api/v2/me": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:read",
+        "operationId": "getCurrentIdentity",
+        "summary": "Introspect the API key's account",
+        "description": "Returns the account and API key the bearer token authenticates, to confirm which identity a token represents.",
+        "responses": {
+          "200": {
+            "description": "The authenticated account and API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/workspaces": {
       "get": {
         "security": [
@@ -295,7 +340,7 @@
         "x-boxcompute-required-scope": "sandbox:create",
         "operationId": "createSandbox",
         "summary": "Create and start a Sandbox in an owned workspace",
-        "description": "VM Sandboxes require Idempotency-Key and return promptly as pending while durable reconciliation provisions the fixed VM profile. Reuse the same key to recover the same public Sandbox; replay returns 202 while pending and 201 once ready.",
+        "description": "VM Sandboxes require Idempotency-Key and return promptly as pending while durable reconciliation provisions the fixed VM profile. Reuse the same key to recover the same public Sandbox; replay returns 202 while pending and 201 once ready. A VM refused by the account's Sandbox or storage limit becomes expired, and replay returns 429 with the reason.",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -420,6 +465,16 @@
           },
           "415": {
             "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The account's Sandbox count or workspace storage limit is reached; stopped Sandboxes count toward both",
             "content": {
               "application/json": {
                 "schema": {
@@ -581,6 +636,138 @@
           },
           "502": {
             "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/sandboxes/{id}/analytics": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:read",
+        "operationId": "getSandboxAnalytics",
+        "summary": "Read bounded lifecycle, operation, and resource analytics",
+        "description": "Returns generation-safe customer aggregates for one owned logical Sandbox. Missing resource telemetry is distinct from a numeric zero, and the response never exposes provider or Kubernetes identifiers.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "resolutionSeconds",
+            "in": "query",
+            "schema": {
+              "default": 300,
+              "type": "integer",
+              "minimum": 60,
+              "maximum": 86400
+            }
+          },
+          {
+            "name": "generation",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 9007199254740991
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "analytics"
+                  ],
+                  "properties": {
+                    "analytics": {
+                      "$ref": "#/components/schemas/SandboxAnalytics"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Per-account analytics request limit exceeded",
             "content": {
               "application/json": {
                 "schema": {
@@ -881,6 +1068,221 @@
         }
       }
     },
+    "/api/v2/sandboxes/{id}/previews": {
+      "post": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:execute",
+        "operationId": "createSandboxPreview",
+        "summary": "Create a one-hour HTTP/WebSocket preview for one VM port",
+        "description": "Creates an in-memory bearer hostname backed by an app-owned Tailcat client. The Sandbox must be an owned, running, network-enabled VM. The hostname is removed after one hour or explicit close; guest revoke remains an untrusted cooperative report.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreatePreviewRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "preview"
+                  ],
+                  "properties": {
+                    "preview": {
+                      "$ref": "#/components/schemas/Preview"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The VM already has a preview tunnel",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "Request body exceeds 128 KiB",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Preview transport unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/sandboxes/{id}/previews/{previewId}": {
+      "delete": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:execute",
+        "operationId": "closeSandboxPreview",
+        "summary": "Close an exact browser preview",
+        "description": "Removes the bearer hostname, stops the app-owned client, and attempts exact-generation guest revoke. This is not host-confirmed transport retirement.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          },
+          {
+            "name": "previewId",
+            "in": "path",
+            "required": true,
+            "description": "Random browser-preview capability identifier.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{32}$"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Preview closed"
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Preview URL is disabled but cleanup remains pending",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v2/sandboxes/{id}/services": {
       "post": {
         "security": [
@@ -890,8 +1292,8 @@
         ],
         "x-boxcompute-required-scope": "sandbox:execute",
         "operationId": "createServiceAccess",
-        "summary": "Create selected TCP access on an operator-pinned active runtime (default off)",
-        "description": "Required UUIDv4 Idempotency-Key and immutable requested_at. One retained client, 1–8 strictly ascending unique ports, exact requested_at+300 expiry. No provisioning or mutation retry. Returns only a sealed capability.",
+        "summary": "Open selected TCP access to an owned active VM (default off)",
+        "description": "Required UUIDv4 Idempotency-Key and immutable requested_at. One retained client, 1–8 strictly ascending unique ports, exact requested_at+3600 expiry. No provisioning or mutation retry. Returns only a sealed capability.",
         "parameters": [
           {
             "name": "id",
@@ -1140,7 +1542,7 @@
         "x-boxcompute-required-scope": "sandbox:execute",
         "operationId": "revokeServiceAccess",
         "summary": "Revoke the exact service generation",
-        "description": "Guardian-confirmed is an authenticated daemon response, not independent physical-stop proof. Uncertain cleanup returns an error, never success.",
+        "description": "The cleanup field reports the runtime profile's evidence. VM guest reports are untrusted and never represented as independent physical-stop proof.",
         "parameters": [
           {
             "name": "id",
@@ -1479,6 +1881,16 @@
           },
           "415": {
             "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "The account's Sandbox count or workspace storage limit is reached; stopped Sandboxes count toward both",
             "content": {
               "application/json": {
                 "schema": {
@@ -3612,6 +4024,615 @@
           }
         }
       }
+    },
+    "/api/v2/deleted-sandboxes": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:read",
+        "operationId": "listDeletedSandboxes",
+        "summary": "List deleted Sandboxes, newest first",
+        "description": "Read-only history kept for about 15 months after deletion. A deleted Sandbox holds no compute, quota or storage; its retained logs remain readable while the log store keeps them (about 30 days).",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeletedSandboxList"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/deleted-sandboxes/{id}/logs": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "sandbox:read",
+        "operationId": "listDeletedSandboxLogs",
+        "summary": "Read a deleted Sandbox's retained logs",
+        "description": "Defaults to the most recent runtime; pass one of the Sandbox's runtimes to read an earlier one.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          },
+          {
+            "name": "since",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "until",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "stream",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "stdout",
+                "stderr"
+              ]
+            }
+          },
+          {
+            "name": "source",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "workload",
+                "execute",
+                "process"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "default": 1000,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 5000
+            }
+          },
+          {
+            "name": "runtime",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 128
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "logs"
+                  ],
+                  "properties": {
+                    "logs": {
+                      "$ref": "#/components/schemas/SandboxLogs"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/costs/sandboxes": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "usage:read",
+        "operationId": "getSandboxCostReport",
+        "summary": "Compute cost per API key and per Sandbox",
+        "description": "Settled charges are exact ledger amounts for runs that ended in the window (default: last 30 days); estimatedMicros covers runs still in progress and is replaced by the settled charge once the run is finalized. Includes deleted Sandboxes. Pass apiKeyId=none for Sandboxes not created with an API key. Billing is per second with a 60-second minimum per run.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "apiKeyId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "costs"
+                  ],
+                  "properties": {
+                    "costs": {
+                      "$ref": "#/components/schemas/SandboxCostReport"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/sandboxes/{id}/costs": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "usage:read",
+        "operationId": "getSandboxCosts",
+        "summary": "Every charged run of a Sandbox, with a running estimate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "costs"
+                  ],
+                  "properties": {
+                    "costs": {
+                      "$ref": "#/components/schemas/SandboxCostDetail"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/deleted-sandboxes/{id}/costs": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "usage:read",
+        "operationId": "getDeletedSandboxCosts",
+        "summary": "Every charged run of a deleted Sandbox",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Customer-facing Sandbox ID.",
+            "schema": {
+              "type": "string",
+              "pattern": "^sbx_"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "costs"
+                  ],
+                  "properties": {
+                    "costs": {
+                      "$ref": "#/components/schemas/SandboxCostDetail"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Sandbox service unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/audit-events": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "usage:read",
+        "operationId": "listAuditEvents",
+        "summary": "List the account's API audit log, newest first",
+        "description": "Every API-key request plus key creation, revocation and rejected-key attempts. Page with nextCursor as before. Reads are retained 31 days; writes and key events about 15 months. Each API response's Request-Id header matches an event's requestId.",
+        "parameters": [
+          {
+            "name": "apiKeyId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "api.request",
+                "api_key.created",
+                "api_key.revoked",
+                "api_key.rejected"
+              ]
+            }
+          },
+          {
+            "name": "resourceId",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "maxLength": 128
+            }
+          },
+          {
+            "name": "method",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "GET",
+                "HEAD",
+                "POST",
+                "PUT",
+                "PATCH",
+                "DELETE"
+              ]
+            }
+          },
+          {
+            "name": "outcome",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "success",
+                "error"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditEventPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3727,7 +4748,10 @@
           },
           "cleanup": {
             "type": "string",
-            "const": "guardian-confirmed"
+            "enum": [
+              "guardian-confirmed",
+              "untrusted-guest-report"
+            ]
           }
         },
         "required": [
@@ -3836,7 +4860,8 @@
               "INVALID_IDEMPOTENCY_KEY",
               "IDEMPOTENCY_CONFLICT",
               "WORKSPACE_QUOTA_EXCEEDED",
-              "SERVICE_UNAVAILABLE"
+              "SERVICE_UNAVAILABLE",
+              "RATE_LIMITED"
             ]
           },
           "error": {
@@ -3868,6 +4893,93 @@
           "id",
           "name",
           "createdAt"
+        ],
+        "additionalProperties": false
+      },
+      "Me": {
+        "type": "object",
+        "properties": {
+          "account": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "email": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "name": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "email",
+              "name"
+            ],
+            "additionalProperties": false
+          },
+          "apiKey": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "scopes": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "createdAt": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "lastUsedAt": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "name",
+              "scopes",
+              "createdAt",
+              "lastUsedAt"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "account",
+          "apiKey"
         ],
         "additionalProperties": false
       },
@@ -3913,6 +5025,14 @@
           "blockNetwork": {
             "description": "Immutable VM network intent: true means no NIC; false means Internet. Omitted for non-VM sandboxes and historical replay responses.",
             "type": "boolean"
+          },
+          "size": {
+            "description": "Immutable VM resource profile. Omitted for historical replay responses written before the selector existed; those rows are small.",
+            "type": "string",
+            "enum": [
+              "small",
+              "large"
+            ]
           },
           "createdAt": {
             "type": "integer",
@@ -3968,7 +5088,7 @@
           },
           "size": {
             "default": "small",
-            "description": "VM only: compute size tier. Omitted or \"small\" selects 0.5 vCPU and 1024 MiB; \"large\" selects 1.5 vCPU and 3072 MiB (3x small). The workspace stays 10 GiB. Ignored for non-VM sandboxes. Historical idempotency replays retain their original size.",
+            "description": "VM only: resource profile. Omitted or \"small\" is 0.5 vCPU / 1024 MiB; \"large\" is 1.5 vCPU / 3072 MiB. Both default to a 30 GiB thin-provisioned workspace. \"small\" is ignored for gVisor sandboxes and \"large\" is rejected with INVALID_ARGUMENT. Historical idempotency replays retain their original size and workspace capacity.",
             "type": "string",
             "enum": [
               "small",
@@ -4026,6 +5146,54 @@
           "argv"
         ],
         "additionalProperties": {}
+      },
+      "CreatePreviewRequest": {
+        "type": "object",
+        "properties": {
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "port"
+        ],
+        "additionalProperties": false
+      },
+      "Preview": {
+        "type": "object",
+        "properties": {
+          "previewId": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32}$"
+          },
+          "sandboxId": {
+            "type": "string"
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time",
+            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+          }
+        },
+        "required": [
+          "previewId",
+          "sandboxId",
+          "port",
+          "url",
+          "expiresAt"
+        ],
+        "additionalProperties": false
       },
       "StartOperationRequest": {
         "type": "object",
@@ -4441,6 +5609,751 @@
         ],
         "additionalProperties": false
       },
+      "DeletedSandbox": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "sandboxId": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "workspaceId": {
+            "type": "string"
+          },
+          "workspaceName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "vmSandbox": {
+            "type": "boolean"
+          },
+          "size": {
+            "type": "string"
+          },
+          "runtimes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "deletedVia": {
+            "type": "string",
+            "enum": [
+              "console",
+              "api",
+              "agent",
+              "workspace"
+            ]
+          },
+          "deletedByApiKeyId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "createdAt": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "lastUsedAt": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "deletedAt": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          }
+        },
+        "required": [
+          "id",
+          "sandboxId",
+          "name",
+          "workspaceId",
+          "workspaceName",
+          "vmSandbox",
+          "size",
+          "runtimes",
+          "deletedVia",
+          "deletedByApiKeyId",
+          "createdAt",
+          "lastUsedAt",
+          "deletedAt"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxCostReport": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "currency": {
+            "type": "string",
+            "const": "usd"
+          },
+          "estimates": {
+            "type": "string",
+            "enum": [
+              "available",
+              "not_applicable",
+              "unavailable"
+            ]
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "runs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "billableSeconds": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "settledMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "estimatedMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "runs",
+              "billableSeconds",
+              "settledMicros",
+              "estimatedMicros"
+            ],
+            "additionalProperties": false
+          },
+          "apiKeys": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "runs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "billableSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "settledMicros": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "estimatedMicros": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "apiKey": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "hint": {
+                          "type": "string"
+                        },
+                        "revoked": {
+                          "type": "boolean"
+                        }
+                      },
+                      "required": [
+                        "id",
+                        "name",
+                        "hint",
+                        "revoked"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "sandboxes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "runs",
+                "billableSeconds",
+                "settledMicros",
+                "estimatedMicros",
+                "apiKey",
+                "sandboxes"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "sandboxes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "runs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "billableSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "settledMicros": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "estimatedMicros": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "id": {
+                  "type": "string"
+                },
+                "sandboxId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "deleted": {
+                  "type": "boolean"
+                },
+                "vmSandbox": {
+                  "type": "boolean"
+                },
+                "size": {
+                  "type": "string"
+                },
+                "createdByApiKeyId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "deletedAt": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "firstStartedAt": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "lastEndedAt": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "runs",
+                "billableSeconds",
+                "settledMicros",
+                "estimatedMicros",
+                "id",
+                "sandboxId",
+                "name",
+                "deleted",
+                "vmSandbox",
+                "size",
+                "createdByApiKeyId",
+                "createdAt",
+                "deletedAt",
+                "firstStartedAt",
+                "lastEndedAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "unattributed": {
+            "type": "object",
+            "properties": {
+              "runs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "billableSeconds": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "settledMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "estimatedMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "runs",
+              "billableSeconds",
+              "settledMicros",
+              "estimatedMicros"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "from",
+          "to",
+          "currency",
+          "estimates",
+          "totals",
+          "apiKeys",
+          "sandboxes",
+          "unattributed"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxCostDetail": {
+        "type": "object",
+        "properties": {
+          "sandbox": {
+            "type": "object",
+            "properties": {
+              "runs": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "billableSeconds": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "settledMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "estimatedMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "id": {
+                "type": "string"
+              },
+              "sandboxId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "deleted": {
+                "type": "boolean"
+              },
+              "vmSandbox": {
+                "type": "boolean"
+              },
+              "size": {
+                "type": "string"
+              },
+              "createdByApiKeyId": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "createdAt": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "deletedAt": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "firstStartedAt": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lastEndedAt": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "runs",
+              "billableSeconds",
+              "settledMicros",
+              "estimatedMicros",
+              "id",
+              "sandboxId",
+              "name",
+              "deleted",
+              "vmSandbox",
+              "size",
+              "createdByApiKeyId",
+              "createdAt",
+              "deletedAt",
+              "firstStartedAt",
+              "lastEndedAt"
+            ],
+            "additionalProperties": false
+          },
+          "createdByApiKey": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "hint": {
+                    "type": "string"
+                  },
+                  "revoked": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "name",
+                  "hint",
+                  "revoked"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "const": "usd"
+          },
+          "estimates": {
+            "type": "string",
+            "enum": [
+              "available",
+              "not_applicable",
+              "unavailable"
+            ]
+          },
+          "runs": {
+            "maxItems": 1000,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "startedAt": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "endedAt": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "runtimeSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "billableSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "rateMicrosPerMinute": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "amountMicros": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "startedAt",
+                "endedAt",
+                "runtimeSeconds",
+                "billableSeconds",
+                "rateMicrosPerMinute",
+                "amountMicros"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "running": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "startedAt": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "billableSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "estimatedMicros": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "startedAt",
+                "billableSeconds",
+                "estimatedMicros"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "truncated": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "sandbox",
+          "createdByApiKey",
+          "currency",
+          "estimates",
+          "runs",
+          "running",
+          "truncated"
+        ],
+        "additionalProperties": false
+      },
+      "DeletedSandboxList": {
+        "type": "object",
+        "properties": {
+          "deletedSandboxes": {
+            "maxItems": 100,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "sandboxId": {
+                  "type": "string"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "workspaceId": {
+                  "type": "string"
+                },
+                "workspaceName": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "vmSandbox": {
+                  "type": "boolean"
+                },
+                "size": {
+                  "type": "string"
+                },
+                "runtimes": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "deletedVia": {
+                  "type": "string",
+                  "enum": [
+                    "console",
+                    "api",
+                    "agent",
+                    "workspace"
+                  ]
+                },
+                "deletedByApiKeyId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "createdAt": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "lastUsedAt": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "deletedAt": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "id",
+                "sandboxId",
+                "name",
+                "workspaceId",
+                "workspaceName",
+                "vmSandbox",
+                "size",
+                "runtimes",
+                "deletedVia",
+                "deletedByApiKeyId",
+                "createdAt",
+                "lastUsedAt",
+                "deletedAt"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "deletedSandboxes"
+        ],
+        "additionalProperties": false
+      },
       "WorkspacePath": {
         "type": "string",
         "maxLength": 4096,
@@ -4841,6 +6754,713 @@
           "activeSandboxes",
           "sandboxSlots",
           "recent"
+        ],
+        "additionalProperties": false
+      },
+      "AuditEvent": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "api.request",
+              "api_key.created",
+              "api_key.revoked",
+              "api_key.rejected"
+            ]
+          },
+          "createdAt": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "requestId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actor": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "api_key",
+                  "session"
+                ]
+              },
+              "apiKey": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string"
+                      },
+                      "name": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      },
+                      "hint": {
+                        "anyOf": [
+                          {
+                            "type": "string"
+                          },
+                          {
+                            "type": "null"
+                          }
+                        ]
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "name",
+                      "hint"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "ipAddress": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "userAgent": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "type",
+              "apiKey",
+              "ipAddress",
+              "userAgent"
+            ],
+            "additionalProperties": false
+          },
+          "request": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "method": {
+                    "type": "string"
+                  },
+                  "route": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "status": {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  "durationMs": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  }
+                },
+                "required": [
+                  "method",
+                  "route",
+                  "path",
+                  "status",
+                  "durationMs"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "resourceId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "createdAt",
+          "requestId",
+          "actor",
+          "request",
+          "resourceId"
+        ],
+        "additionalProperties": false
+      },
+      "AuditEventPage": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "api.request",
+                    "api_key.created",
+                    "api_key.revoked",
+                    "api_key.rejected"
+                  ]
+                },
+                "createdAt": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "requestId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "actor": {
+                  "type": "object",
+                  "properties": {
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "api_key",
+                        "session"
+                      ]
+                    },
+                    "apiKey": {
+                      "anyOf": [
+                        {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string"
+                            },
+                            "name": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            },
+                            "hint": {
+                              "anyOf": [
+                                {
+                                  "type": "string"
+                                },
+                                {
+                                  "type": "null"
+                                }
+                              ]
+                            }
+                          },
+                          "required": [
+                            "id",
+                            "name",
+                            "hint"
+                          ],
+                          "additionalProperties": false
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "ipAddress": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    },
+                    "userAgent": {
+                      "anyOf": [
+                        {
+                          "type": "string"
+                        },
+                        {
+                          "type": "null"
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "type",
+                    "apiKey",
+                    "ipAddress",
+                    "userAgent"
+                  ],
+                  "additionalProperties": false
+                },
+                "request": {
+                  "anyOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "method": {
+                          "type": "string"
+                        },
+                        "route": {
+                          "anyOf": [
+                            {
+                              "type": "string"
+                            },
+                            {
+                              "type": "null"
+                            }
+                          ]
+                        },
+                        "path": {
+                          "type": "string"
+                        },
+                        "status": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991
+                        },
+                        "durationMs": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 9007199254740991
+                        }
+                      },
+                      "required": [
+                        "method",
+                        "route",
+                        "path",
+                        "status",
+                        "durationMs"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "resourceId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "type",
+                "createdAt",
+                "requestId",
+                "actor",
+                "request",
+                "resourceId"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "events",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
+      "SandboxAnalytics": {
+        "type": "object",
+        "properties": {
+          "sandboxId": {
+            "type": "string"
+          },
+          "from": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "to": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "resolutionSeconds": {
+            "type": "integer",
+            "minimum": 60,
+            "maximum": 86400
+          },
+          "retentionSeconds": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 9007199254740991
+          },
+          "generationsTruncated": {
+            "type": "boolean"
+          },
+          "selectedGeneration": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "exclusiveMinimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "operationsTruncated": {
+            "type": "boolean"
+          },
+          "generations": {
+            "maxItems": 32,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "generation": {
+                  "type": "integer",
+                  "exclusiveMinimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "runtimeClass": {
+                  "type": "string",
+                  "enum": [
+                    "container",
+                    "vm"
+                  ]
+                },
+                "startedAt": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "readyAt": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "stoppedAt": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "finalizedAt": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "startupDurationMs": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "runtimeDurationMs": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "generation",
+                "runtimeClass",
+                "startedAt",
+                "readyAt",
+                "stoppedAt",
+                "finalizedAt",
+                "startupDurationMs",
+                "runtimeDurationMs"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "operations": {
+            "maxItems": 1001,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "bucketStart": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "generation": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "operations": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "executions": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "durationMs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "executionDurationMs": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "outputBytes": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "failures": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                }
+              },
+              "required": [
+                "bucketStart",
+                "generation",
+                "operations",
+                "executions",
+                "durationMs",
+                "executionDurationMs",
+                "outputBytes",
+                "failures"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "resources": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "available",
+                  "partial",
+                  "unavailable",
+                  "not_configured"
+                ]
+              },
+              "coverage": {
+                "type": "string",
+                "enum": [
+                  "available",
+                  "partial",
+                  "expired"
+                ]
+              },
+              "retentionStart": {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              "series": {
+                "maxItems": 9,
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "generation": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    "metric": {
+                      "type": "string",
+                      "enum": [
+                        "cpu_usage_cores",
+                        "memory_working_set_bytes",
+                        "network_receive_bytes_per_second",
+                        "network_transmit_bytes_per_second",
+                        "filesystem_read_bytes_per_second",
+                        "filesystem_write_bytes_per_second",
+                        "filesystem_usage_bytes",
+                        "restarts_total",
+                        "oom_kills_total"
+                      ]
+                    },
+                    "unit": {
+                      "type": "string",
+                      "enum": [
+                        "cores",
+                        "bytes",
+                        "bytes_per_second",
+                        "count"
+                      ]
+                    },
+                    "availability": {
+                      "type": "string",
+                      "enum": [
+                        "available",
+                        "no_data"
+                      ]
+                    },
+                    "points": {
+                      "maxItems": 1001,
+                      "type": "array",
+                      "items": {
+                        "type": "array",
+                        "prefixItems": [
+                          {
+                            "type": "integer",
+                            "minimum": 0,
+                            "maximum": 9007199254740991
+                          },
+                          {
+                            "type": "number"
+                          }
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "generation",
+                    "metric",
+                    "unit",
+                    "availability",
+                    "points"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "status",
+              "coverage",
+              "retentionStart",
+              "series"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "required": [
+          "sandboxId",
+          "from",
+          "to",
+          "resolutionSeconds",
+          "retentionSeconds",
+          "generationsTruncated",
+          "selectedGeneration",
+          "operationsTruncated",
+          "generations",
+          "operations",
+          "resources"
         ],
         "additionalProperties": false
       }

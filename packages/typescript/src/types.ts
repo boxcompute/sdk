@@ -13,6 +13,15 @@ export type SandboxLogs = components["schemas"]["SandboxLogs"];
 export type Usage = components["schemas"]["Usage"];
 export type ApiErrorBody = components["schemas"]["Error"];
 export type CreateWorkspaceRequest = components["schemas"]["CreateWorkspaceRequest"];
+export type Me = components["schemas"]["Me"];
+export type AuditEvent = components["schemas"]["AuditEvent"];
+export type AuditEventPage = components["schemas"]["AuditEventPage"];
+export type DeletedSandbox = components["schemas"]["DeletedSandbox"];
+export type Preview = components["schemas"]["Preview"];
+export type CreatePreviewRequest = components["schemas"]["CreatePreviewRequest"];
+export type SandboxAnalytics = components["schemas"]["SandboxAnalytics"];
+export type SandboxCostReport = components["schemas"]["SandboxCostReport"];
+export type SandboxCostDetail = components["schemas"]["SandboxCostDetail"];
 /** VM compute size tier: `small` (0.5 vCPU / 1024 MiB) or `large` (1.5 vCPU / 3072 MiB). */
 export type VmSandboxSize = "small" | "large";
 
@@ -55,6 +64,47 @@ export interface LogsOptions extends RequestOptions {
   until?: string;
   stream?: "stdout" | "stderr";
   source?: "workload" | "execute" | "process";
+  limit?: number;
+}
+
+export interface DeletedSandboxLogsOptions extends LogsOptions {
+  /** Restrict logs to one retained runtime of the deleted Sandbox. */
+  runtime?: string;
+}
+
+export interface AnalyticsOptions extends RequestOptions {
+  /** RFC 3339 window start. */
+  from?: string;
+  /** RFC 3339 window end. */
+  to?: string;
+  /** Bucket width, 60–86400 seconds. The server defaults to 300. */
+  resolutionSeconds?: number;
+  /** Select one runtime generation. */
+  generation?: number;
+}
+
+export interface CostReportOptions extends RequestOptions {
+  /** RFC 3339 window start. The server defaults to the last 30 days. */
+  from?: string;
+  /** RFC 3339 window end. */
+  to?: string;
+  /** Restrict to one API key, or `"none"` for Sandboxes not created with an API key. */
+  apiKeyId?: string;
+}
+
+export interface AuditEventsOptions extends RequestOptions {
+  apiKeyId?: string;
+  type?: AuditEvent["type"];
+  resourceId?: string;
+  method?: "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE";
+  outcome?: "success" | "error";
+  /** RFC 3339 window start. */
+  from?: string;
+  /** RFC 3339 window end. */
+  to?: string;
+  /** `nextCursor` from the previous page. */
+  before?: string;
+  /** Page size, 1–200. The server defaults to 50. */
   limit?: number;
 }
 

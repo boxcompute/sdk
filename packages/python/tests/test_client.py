@@ -222,3 +222,241 @@ async def test_async_client_supports_async_key_providers() -> None:
     boxcompute = AsyncBoxCompute(api_key=api_key, http_client=http)
     assert await boxcompute.sandboxes.list() == []
     await http.aclose()
+
+
+# Minimal contract-valid payloads for the account, cost, and preview routes.
+ME = {
+    "account": {"id": "x", "email": "x", "name": "x"},
+    "apiKey": {"id": "x", "name": "x", "scopes": ["x"], "createdAt": 1, "lastUsedAt": 1},
+}
+AUDIT_PAGE = {
+    "events": [
+        {
+            "id": "x",
+            "type": "api.request",
+            "createdAt": 1,
+            "requestId": "x",
+            "actor": {
+                "type": "api_key",
+                "apiKey": {"id": "x", "name": "x", "hint": "x"},
+                "ipAddress": "x",
+                "userAgent": "x",
+            },
+            "request": {"method": "x", "route": "x", "path": "x", "status": 1, "durationMs": 1},
+            "resourceId": "x",
+        }
+    ],
+    "nextCursor": "x",
+}
+DELETED_SANDBOX = {
+    "id": "x",
+    "sandboxId": "x",
+    "name": "x",
+    "workspaceId": "x",
+    "workspaceName": "x",
+    "vmSandbox": False,
+    "size": "x",
+    "runtimes": ["x"],
+    "deletedVia": "console",
+    "deletedByApiKeyId": "x",
+    "createdAt": 1,
+    "lastUsedAt": 1,
+    "deletedAt": 1,
+}
+PREVIEW = {
+    "previewId": "00000000000000000000000000000000",
+    "sandboxId": "sbx_1",
+    "port": 3000,
+    "url": "https://p.bxcpreview.com",
+    "expiresAt": "2026-10-07T13:00:00.000Z",
+}
+ANALYTICS = {
+    "sandboxId": "x",
+    "from": 1,
+    "to": 1,
+    "resolutionSeconds": 60,
+    "retentionSeconds": 1,
+    "generationsTruncated": False,
+    "selectedGeneration": 1,
+    "operationsTruncated": False,
+    "generations": [
+        {
+            "generation": 1,
+            "runtimeClass": "container",
+            "startedAt": 1,
+            "readyAt": 1,
+            "stoppedAt": 1,
+            "finalizedAt": 1,
+            "startupDurationMs": 1,
+            "runtimeDurationMs": 1,
+        }
+    ],
+    "operations": [
+        {
+            "bucketStart": 1,
+            "generation": 1,
+            "operations": 1,
+            "executions": 1,
+            "durationMs": 1,
+            "executionDurationMs": 1,
+            "outputBytes": 1,
+            "failures": 1,
+        }
+    ],
+    "resources": {
+        "status": "available",
+        "coverage": "available",
+        "retentionStart": 1,
+        "series": [
+            {
+                "generation": 1,
+                "metric": "cpu_usage_cores",
+                "unit": "cores",
+                "availability": "available",
+                "points": [[1, 1]],
+            }
+        ],
+    },
+}
+COST_REPORT = {
+    "from": 1,
+    "to": 1,
+    "currency": "usd",
+    "estimates": "available",
+    "totals": {"runs": 1, "billableSeconds": 1, "settledMicros": 1, "estimatedMicros": 1},
+    "apiKeys": [
+        {
+            "runs": 1,
+            "billableSeconds": 1,
+            "settledMicros": 1,
+            "estimatedMicros": 1,
+            "apiKey": {"id": "x", "name": "x", "hint": "x", "revoked": False},
+            "sandboxes": 1,
+        }
+    ],
+    "sandboxes": [
+        {
+            "runs": 1,
+            "billableSeconds": 1,
+            "settledMicros": 1,
+            "estimatedMicros": 1,
+            "id": "x",
+            "sandboxId": "x",
+            "name": "x",
+            "deleted": False,
+            "vmSandbox": False,
+            "size": "x",
+            "createdByApiKeyId": "x",
+            "createdAt": 1,
+            "deletedAt": 1,
+            "firstStartedAt": 1,
+            "lastEndedAt": 1,
+        }
+    ],
+    "unattributed": {"runs": 1, "billableSeconds": 1, "settledMicros": 1, "estimatedMicros": 1},
+}
+COST_DETAIL = {
+    "sandbox": {
+        "runs": 1,
+        "billableSeconds": 1,
+        "settledMicros": 1,
+        "estimatedMicros": 1,
+        "id": "x",
+        "sandboxId": "x",
+        "name": "x",
+        "deleted": False,
+        "vmSandbox": False,
+        "size": "x",
+        "createdByApiKeyId": "x",
+        "createdAt": 1,
+        "deletedAt": 1,
+        "firstStartedAt": 1,
+        "lastEndedAt": 1,
+    },
+    "createdByApiKey": {"id": "x", "name": "x", "hint": "x", "revoked": False},
+    "currency": "usd",
+    "estimates": "available",
+    "runs": [
+        {
+            "startedAt": 1,
+            "endedAt": 1,
+            "runtimeSeconds": 1,
+            "billableSeconds": 1,
+            "rateMicrosPerMinute": 1,
+            "amountMicros": 1,
+        }
+    ],
+    "running": [{"startedAt": 1, "billableSeconds": 1, "estimatedMicros": 1}],
+    "truncated": False,
+}
+LOGS = {"sandboxId": "sbx_1", "entries": [], "truncated": False, "retention_seconds": 86400}
+
+
+def _routes(request: httpx.Request) -> httpx.Response:
+    routes = {
+        ("GET", "/api/v2/me"): ME,
+        ("GET", "/api/v2/audit-events"): AUDIT_PAGE,
+        ("GET", "/api/v2/costs/sandboxes"): {"costs": COST_REPORT},
+        ("GET", "/api/v2/sandboxes/sbx%2F1/costs"): {"costs": COST_DETAIL},
+        ("GET", "/api/v2/sandboxes/sbx_1/analytics"): {"analytics": ANALYTICS},
+        ("GET", "/api/v2/deleted-sandboxes"): {"deletedSandboxes": [DELETED_SANDBOX]},
+        ("GET", "/api/v2/deleted-sandboxes/dsb_1/logs"): {"logs": LOGS},
+        ("GET", "/api/v2/deleted-sandboxes/dsb_1/costs"): {"costs": COST_DETAIL},
+        ("POST", "/api/v2/sandboxes/sbx_1/previews"): {"preview": PREVIEW},
+    }
+    key = (request.method, request.url.raw_path.decode().split("?")[0])
+    if key == ("DELETE", f"/api/v2/sandboxes/sbx_1/previews/{PREVIEW['previewId']}"):
+        return httpx.Response(204)
+    return httpx.Response(201 if request.method == "POST" else 200, json=routes[key])
+
+
+def test_reads_identity_audit_cost_and_analytics_routes() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return _routes(request)
+
+    http = httpx.Client(
+        base_url="https://api.boxcompute.ai", transport=httpx.MockTransport(handler)
+    )
+    boxcompute = BoxCompute(api_key="bc_live_test", http_client=http)
+
+    assert boxcompute.me.get().account.id == ME["account"]["id"]
+    page = boxcompute.audit_events.list(type="api.request", outcome="error", before="c/1", limit=20)
+    assert page.next_cursor == AUDIT_PAGE["nextCursor"]
+    assert boxcompute.costs.sandboxes(api_key_id="none", from_="2026-10-01T00:00:00Z").currency
+    assert boxcompute.sandboxes.costs("sbx/1").truncated is False
+    assert boxcompute.sandboxes.analytics("sbx_1", resolution_seconds=60, generation=2).sandbox_id
+
+    assert [dict(request.url.params) for request in seen] == [
+        {},
+        {"type": "api.request", "outcome": "error", "before": "c/1", "limit": "20"},
+        {"from": "2026-10-01T00:00:00Z", "apiKeyId": "none"},
+        {},
+        {"resolutionSeconds": "60", "generation": "2"},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_async_deleted_sandboxes_and_previews() -> None:
+    bodies: list[bytes] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        bodies.append(request.read())
+        return _routes(request)
+
+    http = httpx.AsyncClient(
+        base_url="https://api.boxcompute.ai", transport=httpx.MockTransport(handler)
+    )
+    async with AsyncBoxCompute(api_key="bc_live_test", http_client=http) as boxcompute:
+        deleted = await boxcompute.deleted_sandboxes.list()
+        assert deleted[0].sandbox_id == DELETED_SANDBOX["sandboxId"]
+        logs = await boxcompute.deleted_sandboxes.logs("dsb_1", runtime="rt_1", stream="stderr")
+        assert logs.sandbox_id == "sbx_1"
+        assert (await boxcompute.deleted_sandboxes.costs("dsb_1")).currency
+        preview = await boxcompute.previews.create("sbx_1", port=3000)
+        assert preview.port == 3000
+        assert await boxcompute.previews.close("sbx_1", preview.preview_id) is None
+
+    assert bodies[3] == b'{"port":3000}'

@@ -1,8 +1,13 @@
 export {
+  AuditEventsResource,
   AuthResource,
   BoxCompute,
+  CostsResource,
+  DeletedSandboxesResource,
   FilesResource,
+  MeResource,
   OperationsResource,
+  PreviewsResource,
   SandboxesResource,
   UsageResource,
   WorkspacesResource,

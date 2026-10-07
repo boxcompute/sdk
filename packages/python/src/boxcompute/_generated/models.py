@@ -8,6 +8,7 @@ from enum import Enum
 from typing import Any, Dict, Literal
 
 from pydantic import (
+    AnyUrl,
     AwareDatetime,
     BaseModel,
     ConfigDict,
@@ -55,12 +56,17 @@ class ServiceAccessEnvelope(BaseModel):
     sealed: constr(min_length=80, max_length=16000)
 
 
+class Cleanup(Enum):
+    guardian_confirmed = 'guardian-confirmed'
+    untrusted_guest_report = 'untrusted-guest-report'
+
+
 class ServiceAccessRevoke(BaseModel):
     model_config = ConfigDict(
         extra='ignore',
     )
     generation_id: str
-    cleanup: Literal['guardian-confirmed']
+    cleanup: Cleanup
 
 
 class CooperativeConnectionKeys(BaseModel):
@@ -120,6 +126,7 @@ class Code(Enum):
     idempotency_conflict = 'IDEMPOTENCY_CONFLICT'
     workspace_quota_exceeded = 'WORKSPACE_QUOTA_EXCEEDED'
     service_unavailable = 'SERVICE_UNAVAILABLE'
+    rate_limited = 'RATE_LIMITED'
 
 
 class Error(BaseModel):
@@ -139,6 +146,34 @@ class Workspace(BaseModel):
     created_at: conint(ge=0, le=9007199254740991) = Field(..., alias='createdAt')
 
 
+class Account(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    id: str
+    email: str | None
+    name: str | None
+
+
+class ApiKey(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    id: str
+    name: str
+    scopes: list[str] = Field(..., min_length=1)
+    created_at: conint(ge=0, le=9007199254740991) = Field(..., alias='createdAt')
+    last_used_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='lastUsedAt')
+
+
+class Me(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    account: Account
+    api_key: ApiKey = Field(..., alias='apiKey')
+
+
 class CreateWorkspaceRequest(BaseModel):
     model_config = ConfigDict(
         extra='ignore',
@@ -156,6 +191,11 @@ class State(Enum):
     expired = 'expired'
 
 
+class Size(Enum):
+    small = 'small'
+    large = 'large'
+
+
 class Sandbox(BaseModel):
     model_config = ConfigDict(
         extra='ignore',
@@ -169,13 +209,12 @@ class Sandbox(BaseModel):
     """
     Immutable VM network intent: true means no NIC; false means Internet. Omitted for non-VM sandboxes and historical replay responses.
     """
+    size: Size | None = None
+    """
+    Immutable VM resource profile. Omitted for historical replay responses written before the selector existed; those rows are small.
+    """
     created_at: conint(ge=0, le=9007199254740991) = Field(..., alias='createdAt')
     last_used_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='lastUsedAt')
-
-
-class Size(Enum):
-    small = 'small'
-    large = 'large'
 
 
 class CreateSandboxRequest(BaseModel):
@@ -197,7 +236,7 @@ class CreateSandboxRequest(BaseModel):
     """
     size: Size | None = 'small'
     """
-    VM only: compute size tier. Omitted or "small" selects 0.5 vCPU and 1024 MiB; "large" selects 1.5 vCPU and 3072 MiB (3x small). The workspace stays 10 GiB. Ignored for non-VM sandboxes. Historical idempotency replays retain their original size.
+    VM only: resource profile. Omitted or "small" is 0.5 vCPU / 1024 MiB; "large" is 1.5 vCPU / 3072 MiB. Both default to a 30 GiB thin-provisioned workspace. "small" is ignored for gVisor sandboxes and "large" is rejected with INVALID_ARGUMENT. Historical idempotency replays retain their original size and workspace capacity.
     """
 
 
@@ -217,6 +256,24 @@ class ExecuteRequest(BaseModel):
     env: dict[constr(pattern=r'^[A-Za-z_][A-Za-z0-9_]*$'), str] | None = Field(None, max_length=64)
     timeout_seconds: conint(ge=1, le=900) | None = Field(120, alias='timeoutSeconds')
     max_output_bytes: conint(ge=1, le=1048576) | None = Field(262144, alias='maxOutputBytes')
+
+
+class CreatePreviewRequest(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    port: conint(ge=1, le=65535)
+
+
+class Preview(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    preview_id: constr(pattern=r'^[a-f0-9]{32}$') = Field(..., alias='previewId')
+    sandbox_id: str = Field(..., alias='sandboxId')
+    port: conint(ge=1, le=65535)
+    url: AnyUrl
+    expires_at: AwareDatetime = Field(..., alias='expiresAt')
 
 
 class StartOperationRequest(ExecuteRequest):
@@ -324,6 +381,176 @@ class SandboxLogs(BaseModel):
     entries: list[Entry]
     truncated: bool
     retention_seconds: conint(ge=0, le=9007199254740991)
+
+
+class DeletedVia(Enum):
+    console = 'console'
+    api = 'api'
+    agent = 'agent'
+    workspace = 'workspace'
+
+
+class DeletedSandbox(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    id: str
+    sandbox_id: str = Field(..., alias='sandboxId')
+    name: str
+    workspace_id: str = Field(..., alias='workspaceId')
+    workspace_name: str | None = Field(..., alias='workspaceName')
+    vm_sandbox: bool = Field(..., alias='vmSandbox')
+    size: str
+    runtimes: list[str]
+    deleted_via: DeletedVia = Field(..., alias='deletedVia')
+    deleted_by_api_key_id: str | None = Field(..., alias='deletedByApiKeyId')
+    created_at: conint(ge=0, le=9007199254740991) = Field(..., alias='createdAt')
+    last_used_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='lastUsedAt')
+    deleted_at: conint(ge=0, le=9007199254740991) = Field(..., alias='deletedAt')
+
+
+class Estimates(Enum):
+    available = 'available'
+    not_applicable = 'not_applicable'
+    unavailable = 'unavailable'
+
+
+class Totals(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    runs: conint(ge=0, le=9007199254740991)
+    billable_seconds: conint(ge=0, le=9007199254740991) = Field(..., alias='billableSeconds')
+    settled_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='settledMicros'
+    )
+    estimated_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='estimatedMicros'
+    )
+
+
+class ApiKey2(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    id: str
+    name: str
+    hint: str
+    revoked: bool
+
+
+class ApiKey1(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    runs: conint(ge=0, le=9007199254740991)
+    billable_seconds: conint(ge=0, le=9007199254740991) = Field(..., alias='billableSeconds')
+    settled_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='settledMicros'
+    )
+    estimated_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='estimatedMicros'
+    )
+    api_key: ApiKey2 | None = Field(..., alias='apiKey')
+    sandboxes: conint(ge=0, le=9007199254740991)
+
+
+class Sandbox1(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    runs: conint(ge=0, le=9007199254740991)
+    billable_seconds: conint(ge=0, le=9007199254740991) = Field(..., alias='billableSeconds')
+    settled_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='settledMicros'
+    )
+    estimated_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='estimatedMicros'
+    )
+    id: str
+    sandbox_id: str = Field(..., alias='sandboxId')
+    name: str
+    deleted: bool
+    vm_sandbox: bool = Field(..., alias='vmSandbox')
+    size: str
+    created_by_api_key_id: str | None = Field(..., alias='createdByApiKeyId')
+    created_at: conint(ge=0, le=9007199254740991) = Field(..., alias='createdAt')
+    deleted_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='deletedAt')
+    first_started_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='firstStartedAt')
+    last_ended_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='lastEndedAt')
+
+
+class Unattributed(Totals):
+    pass
+
+
+class SandboxCostReport(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    from_: conint(ge=0, le=9007199254740991) = Field(..., alias='from')
+    to: conint(ge=0, le=9007199254740991)
+    currency: Literal['usd']
+    estimates: Estimates
+    totals: Totals
+    api_keys: list[ApiKey1] = Field(..., alias='apiKeys')
+    sandboxes: list[Sandbox1]
+    unattributed: Unattributed
+
+
+class CreatedByApiKey(ApiKey2):
+    pass
+
+
+class Run(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    started_at: conint(ge=0, le=9007199254740991) = Field(..., alias='startedAt')
+    ended_at: conint(ge=0, le=9007199254740991) = Field(..., alias='endedAt')
+    runtime_seconds: conint(ge=0, le=9007199254740991) = Field(..., alias='runtimeSeconds')
+    billable_seconds: conint(ge=0, le=9007199254740991) = Field(..., alias='billableSeconds')
+    rate_micros_per_minute: conint(ge=0, le=9007199254740991) = Field(
+        ..., alias='rateMicrosPerMinute'
+    )
+    amount_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='amountMicros'
+    )
+
+
+class RunningItem(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    started_at: conint(ge=0, le=9007199254740991) = Field(..., alias='startedAt')
+    billable_seconds: conint(ge=0, le=9007199254740991) = Field(..., alias='billableSeconds')
+    estimated_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='estimatedMicros'
+    )
+
+
+class SandboxCostDetail(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    sandbox: Sandbox1
+    created_by_api_key: CreatedByApiKey | None = Field(..., alias='createdByApiKey')
+    currency: Literal['usd']
+    estimates: Estimates
+    runs: list[Run] = Field(..., max_length=1000)
+    running: list[RunningItem]
+    truncated: bool
+
+
+class DeletedSandbox1(DeletedSandbox):
+    pass
+
+
+class DeletedSandboxList(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    deleted_sandboxes: list[DeletedSandbox1] = Field(..., alias='deletedSandboxes', max_length=100)
 
 
 class WorkspacePath(RootModel[str]):
@@ -473,3 +700,199 @@ class Usage(BaseModel):
     active_sandboxes: conint(ge=0, le=9007199254740991) = Field(..., alias='activeSandboxes')
     sandbox_slots: conint(ge=0, le=9007199254740991) = Field(..., alias='sandboxSlots')
     recent: list[RecentItem] = Field(..., max_length=20)
+
+
+class Type(Enum):
+    api_request = 'api.request'
+    api_key_created = 'api_key.created'
+    api_key_revoked = 'api_key.revoked'
+    api_key_rejected = 'api_key.rejected'
+
+
+class Type1(Enum):
+    api_key = 'api_key'
+    session = 'session'
+
+
+class ApiKey3(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    id: str
+    name: str | None
+    hint: str | None
+
+
+class Actor(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    type: Type1
+    api_key: ApiKey3 | None = Field(..., alias='apiKey')
+    ip_address: str | None = Field(..., alias='ipAddress')
+    user_agent: str | None = Field(..., alias='userAgent')
+
+
+class Request(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    method: str
+    route: str | None
+    path: str
+    status: conint(ge=-9007199254740991, le=9007199254740991)
+    duration_ms: conint(ge=0, le=9007199254740991) = Field(..., alias='durationMs')
+
+
+class AuditEvent(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    id: str
+    type: Type
+    created_at: conint(ge=0, le=9007199254740991) = Field(..., alias='createdAt')
+    request_id: str | None = Field(..., alias='requestId')
+    actor: Actor
+    request: Request | None
+    resource_id: str | None = Field(..., alias='resourceId')
+
+
+class Actor1(Actor):
+    pass
+
+
+class Event(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    id: str
+    type: Type
+    created_at: conint(ge=0, le=9007199254740991) = Field(..., alias='createdAt')
+    request_id: str | None = Field(..., alias='requestId')
+    actor: Actor1
+    request: Request | None
+    resource_id: str | None = Field(..., alias='resourceId')
+
+
+class AuditEventPage(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    events: list[Event] = Field(..., max_length=200)
+    next_cursor: str | None = Field(..., alias='nextCursor')
+
+
+class RuntimeClass(Enum):
+    container = 'container'
+    vm = 'vm'
+
+
+class Generation(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    generation: conint(le=9007199254740991, gt=0)
+    runtime_class: RuntimeClass = Field(..., alias='runtimeClass')
+    started_at: conint(ge=0, le=9007199254740991) = Field(..., alias='startedAt')
+    ready_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='readyAt')
+    stopped_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='stoppedAt')
+    finalized_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='finalizedAt')
+    startup_duration_ms: conint(ge=0, le=9007199254740991) | None = Field(
+        ..., alias='startupDurationMs'
+    )
+    runtime_duration_ms: conint(ge=0, le=9007199254740991) | None = Field(
+        ..., alias='runtimeDurationMs'
+    )
+
+
+class Operation2(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    bucket_start: conint(ge=0, le=9007199254740991) = Field(..., alias='bucketStart')
+    generation: conint(le=9007199254740991, gt=0) | None
+    operations: conint(ge=0, le=9007199254740991)
+    executions: conint(ge=0, le=9007199254740991)
+    duration_ms: conint(ge=0, le=9007199254740991) = Field(..., alias='durationMs')
+    execution_duration_ms: conint(ge=0, le=9007199254740991) = Field(
+        ..., alias='executionDurationMs'
+    )
+    output_bytes: conint(ge=0, le=9007199254740991) = Field(..., alias='outputBytes')
+    failures: conint(ge=0, le=9007199254740991)
+
+
+class Status(Enum):
+    available = 'available'
+    partial = 'partial'
+    unavailable = 'unavailable'
+    not_configured = 'not_configured'
+
+
+class Coverage(Enum):
+    available = 'available'
+    partial = 'partial'
+    expired = 'expired'
+
+
+class Metric(Enum):
+    cpu_usage_cores = 'cpu_usage_cores'
+    memory_working_set_bytes = 'memory_working_set_bytes'
+    network_receive_bytes_per_second = 'network_receive_bytes_per_second'
+    network_transmit_bytes_per_second = 'network_transmit_bytes_per_second'
+    filesystem_read_bytes_per_second = 'filesystem_read_bytes_per_second'
+    filesystem_write_bytes_per_second = 'filesystem_write_bytes_per_second'
+    filesystem_usage_bytes = 'filesystem_usage_bytes'
+    restarts_total = 'restarts_total'
+    oom_kills_total = 'oom_kills_total'
+
+
+class Unit(Enum):
+    cores = 'cores'
+    bytes = 'bytes'
+    bytes_per_second = 'bytes_per_second'
+    count = 'count'
+
+
+class Availability(Enum):
+    available = 'available'
+    no_data = 'no_data'
+
+
+class Series(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    generation: conint(le=9007199254740991, gt=0)
+    metric: Metric
+    unit: Unit
+    availability: Availability
+    points: list[list[Any]] = Field(..., max_length=1001)
+
+
+class Resources(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    status: Status
+    coverage: Coverage
+    retention_start: conint(ge=0, le=9007199254740991) = Field(..., alias='retentionStart')
+    series: list[Series] = Field(..., max_length=9)
+
+
+class SandboxAnalytics(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    sandbox_id: str = Field(..., alias='sandboxId')
+    from_: conint(ge=0, le=9007199254740991) = Field(..., alias='from')
+    to: conint(ge=0, le=9007199254740991)
+    resolution_seconds: conint(ge=60, le=86400) = Field(..., alias='resolutionSeconds')
+    retention_seconds: conint(le=9007199254740991, gt=0) = Field(..., alias='retentionSeconds')
+    generations_truncated: bool = Field(..., alias='generationsTruncated')
+    selected_generation: conint(le=9007199254740991, gt=0) | None = Field(
+        ..., alias='selectedGeneration'
+    )
+    operations_truncated: bool = Field(..., alias='operationsTruncated')
+    generations: list[Generation] = Field(..., max_length=32)
+    operations: list[Operation2] = Field(..., max_length=1001)
+    resources: Resources

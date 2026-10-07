@@ -1,6 +1,13 @@
 import { BoxComputeTransportError, responseError } from "./errors.js";
 import type {
+  AnalyticsOptions,
+  AuditEventPage,
+  AuditEventsOptions,
+  CostReportOptions,
+  CreatePreviewRequest,
   CreateSandboxRequest,
+  DeletedSandbox,
+  DeletedSandboxLogsOptions,
   CreateWorkspaceRequest,
   EditFileInput,
   EditFileResponse,
@@ -10,15 +17,20 @@ import type {
   FileStat,
   ListFilesOptions,
   LogsOptions,
+  Me,
   Operation,
   OperationOutputChunk,
   OperationOutputOptions,
+  Preview,
   ReadFileOptions,
   ReadFileResult,
   RemoveFileOptions,
   RenameFileInput,
   RequestOptions,
   Sandbox,
+  SandboxAnalytics,
+  SandboxCostDetail,
+  SandboxCostReport,
   SandboxLogs,
   StartOperationRequest,
   Usage,
@@ -54,6 +66,16 @@ function query(values: Record<string, string | number | boolean | undefined>): s
   }
   const encoded = params.toString();
   return encoded ? `?${encoded}` : "";
+}
+
+function requestOptions({ signal, timeoutMs }: {
+  signal?: AbortSignal | undefined;
+  timeoutMs?: number | undefined;
+}): RequestOptions {
+  return {
+    ...(signal ? { signal } : {}),
+    ...(timeoutMs !== undefined ? { timeoutMs } : {}),
+  };
 }
 
 function jsonBody(value: unknown): Pick<TransportRequest, "body" | "headers"> {
@@ -268,6 +290,76 @@ export class SandboxesResource {
       },
     );
     return response.logs;
+  }
+
+  async analytics(id: string, options: AnalyticsOptions = {}): Promise<SandboxAnalytics> {
+    const { signal, timeoutMs, ...parameters } = options;
+    const response = await this.transport.request<{ analytics: SandboxAnalytics }>(
+      `/api/v2/sandboxes/${encodeURIComponent(id)}/analytics${query(parameters)}`,
+      requestOptions({ signal, timeoutMs }),
+    );
+    return response.analytics;
+  }
+
+  async costs(id: string, options: RequestOptions = {}): Promise<SandboxCostDetail> {
+    const response = await this.transport.request<{ costs: SandboxCostDetail }>(
+      `/api/v2/sandboxes/${encodeURIComponent(id)}/costs`,
+      options,
+    );
+    return response.costs;
+  }
+}
+
+export class DeletedSandboxesResource {
+  constructor(private readonly transport: Transport) {}
+
+  async list(options: RequestOptions = {}): Promise<DeletedSandbox[]> {
+    const response = await this.transport.request<{ deletedSandboxes: DeletedSandbox[] }>(
+      "/api/v2/deleted-sandboxes",
+      options,
+    );
+    return response.deletedSandboxes;
+  }
+
+  async logs(id: string, options: DeletedSandboxLogsOptions = {}): Promise<SandboxLogs> {
+    const { signal, timeoutMs, ...filters } = options;
+    const response = await this.transport.request<{ logs: SandboxLogs }>(
+      `/api/v2/deleted-sandboxes/${encodeURIComponent(id)}/logs${query(filters)}`,
+      requestOptions({ signal, timeoutMs }),
+    );
+    return response.logs;
+  }
+
+  async costs(id: string, options: RequestOptions = {}): Promise<SandboxCostDetail> {
+    const response = await this.transport.request<{ costs: SandboxCostDetail }>(
+      `/api/v2/deleted-sandboxes/${encodeURIComponent(id)}/costs`,
+      options,
+    );
+    return response.costs;
+  }
+}
+
+export class PreviewsResource {
+  constructor(private readonly transport: Transport) {}
+
+  /** Open a one-hour HTTP/WebSocket preview for one port of an owned, running VM. */
+  async create(
+    sandboxId: string,
+    input: CreatePreviewRequest,
+    options: RequestOptions = {},
+  ): Promise<Preview> {
+    const response = await this.transport.request<{ preview: Preview }>(
+      `/api/v2/sandboxes/${encodeURIComponent(sandboxId)}/previews`,
+      { method: "POST", ...jsonBody(input), ...options },
+    );
+    return response.preview;
+  }
+
+  async close(sandboxId: string, previewId: string, options: RequestOptions = {}): Promise<void> {
+    await this.transport.request(
+      `/api/v2/sandboxes/${encodeURIComponent(sandboxId)}/previews/${encodeURIComponent(previewId)}`,
+      { method: "DELETE", responseKind: "void", ...options },
+    );
   }
 }
 
@@ -497,6 +589,42 @@ export class UsageResource {
   }
 }
 
+export class MeResource {
+  constructor(private readonly transport: Transport) {}
+
+  /** Return the account and API key the bearer credential authenticates. */
+  async get(options: RequestOptions = {}): Promise<Me> {
+    return await this.transport.request<Me>("/api/v2/me", options);
+  }
+}
+
+export class AuditEventsResource {
+  constructor(private readonly transport: Transport) {}
+
+  /** List one page of the account's API audit log, newest first. */
+  async list(options: AuditEventsOptions = {}): Promise<AuditEventPage> {
+    const { signal, timeoutMs, ...filters } = options;
+    return await this.transport.request<AuditEventPage>(
+      `/api/v2/audit-events${query(filters)}`,
+      requestOptions({ signal, timeoutMs }),
+    );
+  }
+}
+
+export class CostsResource {
+  constructor(private readonly transport: Transport) {}
+
+  /** Compute cost per API key and per Sandbox, including deleted Sandboxes. */
+  async sandboxes(options: CostReportOptions = {}): Promise<SandboxCostReport> {
+    const { signal, timeoutMs, ...filters } = options;
+    const response = await this.transport.request<{ costs: SandboxCostReport }>(
+      `/api/v2/costs/sandboxes${query(filters)}`,
+      requestOptions({ signal, timeoutMs }),
+    );
+    return response.costs;
+  }
+}
+
 export class BoxCompute {
   readonly auth: AuthResource;
   readonly workspaces: WorkspacesResource;
@@ -504,6 +632,11 @@ export class BoxCompute {
   readonly operations: OperationsResource;
   readonly files: FilesResource;
   readonly usage: UsageResource;
+  readonly me: MeResource;
+  readonly auditEvents: AuditEventsResource;
+  readonly costs: CostsResource;
+  readonly deletedSandboxes: DeletedSandboxesResource;
+  readonly previews: PreviewsResource;
 
   constructor(options: BoxComputeOptions) {
     const transport = new Transport(options.apiKey, options);
@@ -513,5 +646,10 @@ export class BoxCompute {
     this.operations = new OperationsResource(transport);
     this.files = new FilesResource(transport);
     this.usage = new UsageResource(transport);
+    this.me = new MeResource(transport);
+    this.auditEvents = new AuditEventsResource(transport);
+    this.costs = new CostsResource(transport);
+    this.deletedSandboxes = new DeletedSandboxesResource(transport);
+    this.previews = new PreviewsResource(transport);
   }
 }

@@ -9,13 +9,20 @@ from urllib.parse import quote
 import httpx
 
 from ._generated.models import (
+    AuditEventPage,
+    DeletedSandbox,
     EditFileResponse,
     ExecutionResult,
     FileList,
     FileStat,
+    Me,
     Operation,
     OperationOutputChunk,
+    Preview,
     Sandbox,
+    SandboxAnalytics,
+    SandboxCostDetail,
+    SandboxCostReport,
     SandboxLogs,
     Usage,
     Workspace,
@@ -49,6 +56,22 @@ def _headers(api_key: str, extra: Mapping[str, str] | None = None) -> dict[str, 
 
 def _sandbox_path(sandbox_id: str, suffix: str = "") -> str:
     return f"/api/v2/sandboxes/{quote(sandbox_id, safe='')}{suffix}"
+
+
+def _params(values: Mapping[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in values.items() if value is not None}
+
+
+def _deleted_sandbox_path(deleted_sandbox_id: str, suffix: str = "") -> str:
+    return f"/api/v2/deleted-sandboxes/{quote(deleted_sandbox_id, safe='')}{suffix}"
+
+
+def _preview_path(sandbox_id: str, preview_id: str) -> str:
+    return f"{_sandbox_path(sandbox_id, '/previews')}/{quote(preview_id, safe='')}"
+
+
+AuditEventType = Literal["api.request", "api_key.created", "api_key.revoked", "api_key.rejected"]
+AuditMethod = Literal["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
 
 
 def _operation_path(sandbox_id: str, operation_id: str, suffix: str = "") -> str:
@@ -265,6 +288,87 @@ class Sandboxes:
         ).json()
         return SandboxLogs.model_validate(data["logs"])
 
+    def analytics(
+        self,
+        sandbox_id: str,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+        resolution_seconds: int | None = None,
+        generation: int | None = None,
+    ) -> SandboxAnalytics:
+        params = _params(
+            {
+                "from": from_,
+                "to": to,
+                "resolutionSeconds": resolution_seconds,
+                "generation": generation,
+            }
+        )
+        data = self._transport.request(
+            "GET", _sandbox_path(sandbox_id, "/analytics"), params=params
+        ).json()
+        return SandboxAnalytics.model_validate(data["analytics"])
+
+    def costs(self, sandbox_id: str) -> SandboxCostDetail:
+        data = self._transport.request("GET", _sandbox_path(sandbox_id, "/costs")).json()
+        return SandboxCostDetail.model_validate(data["costs"])
+
+
+class DeletedSandboxes:
+    def __init__(self, transport: _SyncTransport) -> None:
+        self._transport = transport
+
+    def list(self) -> list[DeletedSandbox]:
+        data = self._transport.request("GET", "/api/v2/deleted-sandboxes").json()
+        return [DeletedSandbox.model_validate(value) for value in data["deletedSandboxes"]]
+
+    def logs(
+        self,
+        deleted_sandbox_id: str,
+        *,
+        since: str | None = None,
+        until: str | None = None,
+        stream: Literal["stdout", "stderr"] | None = None,
+        source: Literal["workload", "execute", "process"] | None = None,
+        limit: int | None = None,
+        runtime: str | None = None,
+    ) -> SandboxLogs:
+        params = _params(
+            {
+                "since": since,
+                "until": until,
+                "stream": stream,
+                "source": source,
+                "limit": limit,
+                "runtime": runtime,
+            }
+        )
+        data = self._transport.request(
+            "GET", _deleted_sandbox_path(deleted_sandbox_id, "/logs"), params=params
+        ).json()
+        return SandboxLogs.model_validate(data["logs"])
+
+    def costs(self, deleted_sandbox_id: str) -> SandboxCostDetail:
+        data = self._transport.request(
+            "GET", _deleted_sandbox_path(deleted_sandbox_id, "/costs")
+        ).json()
+        return SandboxCostDetail.model_validate(data["costs"])
+
+
+class Previews:
+    def __init__(self, transport: _SyncTransport) -> None:
+        self._transport = transport
+
+    def create(self, sandbox_id: str, *, port: int) -> Preview:
+        data = self._transport.request(
+            "POST", _sandbox_path(sandbox_id, "/previews"), json={"port": port}
+        ).json()
+        return Preview.model_validate(data["preview"])
+
+    def close(self, sandbox_id: str, preview_id: str) -> None:
+        self._transport.request("DELETE", _preview_path(sandbox_id, preview_id))
+
 
 class AsyncSandboxes:
     def __init__(self, transport: _AsyncTransport) -> None:
@@ -356,6 +460,95 @@ class AsyncSandboxes:
             await self._transport.request("GET", _sandbox_path(sandbox_id, "/logs"), params=params)
         ).json()
         return SandboxLogs.model_validate(data["logs"])
+
+    async def analytics(
+        self,
+        sandbox_id: str,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+        resolution_seconds: int | None = None,
+        generation: int | None = None,
+    ) -> SandboxAnalytics:
+        params = _params(
+            {
+                "from": from_,
+                "to": to,
+                "resolutionSeconds": resolution_seconds,
+                "generation": generation,
+            }
+        )
+        data = (
+            await self._transport.request(
+                "GET", _sandbox_path(sandbox_id, "/analytics"), params=params
+            )
+        ).json()
+        return SandboxAnalytics.model_validate(data["analytics"])
+
+    async def costs(self, sandbox_id: str) -> SandboxCostDetail:
+        data = (await self._transport.request("GET", _sandbox_path(sandbox_id, "/costs"))).json()
+        return SandboxCostDetail.model_validate(data["costs"])
+
+
+class AsyncDeletedSandboxes:
+    def __init__(self, transport: _AsyncTransport) -> None:
+        self._transport = transport
+
+    async def list(self) -> list[DeletedSandbox]:
+        data = (await self._transport.request("GET", "/api/v2/deleted-sandboxes")).json()
+        return [DeletedSandbox.model_validate(value) for value in data["deletedSandboxes"]]
+
+    async def logs(
+        self,
+        deleted_sandbox_id: str,
+        *,
+        since: str | None = None,
+        until: str | None = None,
+        stream: Literal["stdout", "stderr"] | None = None,
+        source: Literal["workload", "execute", "process"] | None = None,
+        limit: int | None = None,
+        runtime: str | None = None,
+    ) -> SandboxLogs:
+        params = _params(
+            {
+                "since": since,
+                "until": until,
+                "stream": stream,
+                "source": source,
+                "limit": limit,
+                "runtime": runtime,
+            }
+        )
+        data = (
+            await self._transport.request(
+                "GET", _deleted_sandbox_path(deleted_sandbox_id, "/logs"), params=params
+            )
+        ).json()
+        return SandboxLogs.model_validate(data["logs"])
+
+    async def costs(self, deleted_sandbox_id: str) -> SandboxCostDetail:
+        data = (
+            await self._transport.request(
+                "GET", _deleted_sandbox_path(deleted_sandbox_id, "/costs")
+            )
+        ).json()
+        return SandboxCostDetail.model_validate(data["costs"])
+
+
+class AsyncPreviews:
+    def __init__(self, transport: _AsyncTransport) -> None:
+        self._transport = transport
+
+    async def create(self, sandbox_id: str, *, port: int) -> Preview:
+        data = (
+            await self._transport.request(
+                "POST", _sandbox_path(sandbox_id, "/previews"), json={"port": port}
+            )
+        ).json()
+        return Preview.model_validate(data["preview"])
+
+    async def close(self, sandbox_id: str, preview_id: str) -> None:
+        await self._transport.request("DELETE", _preview_path(sandbox_id, preview_id))
 
 
 class Operations:
@@ -784,6 +977,124 @@ class AsyncAuth:
         await self._transport.request("DELETE", "/api/v2/auth")
 
 
+class MeResource:
+    def __init__(self, transport: _SyncTransport) -> None:
+        self._transport = transport
+
+    def get(self) -> Me:
+        return Me.model_validate(self._transport.request("GET", "/api/v2/me").json())
+
+
+class AuditEvents:
+    def __init__(self, transport: _SyncTransport) -> None:
+        self._transport = transport
+
+    def list(
+        self,
+        *,
+        api_key_id: str | None = None,
+        type: AuditEventType | None = None,
+        resource_id: str | None = None,
+        method: AuditMethod | None = None,
+        outcome: Literal["success", "error"] | None = None,
+        from_: str | None = None,
+        to: str | None = None,
+        before: str | None = None,
+        limit: int | None = None,
+    ) -> AuditEventPage:
+        params = _params(
+            {
+                "apiKeyId": api_key_id,
+                "type": type,
+                "resourceId": resource_id,
+                "method": method,
+                "outcome": outcome,
+                "from": from_,
+                "to": to,
+                "before": before,
+                "limit": limit,
+            }
+        )
+        data = self._transport.request("GET", "/api/v2/audit-events", params=params).json()
+        return AuditEventPage.model_validate(data)
+
+
+class Costs:
+    def __init__(self, transport: _SyncTransport) -> None:
+        self._transport = transport
+
+    def sandboxes(
+        self,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+        api_key_id: str | None = None,
+    ) -> SandboxCostReport:
+        params = _params({"from": from_, "to": to, "apiKeyId": api_key_id})
+        data = self._transport.request("GET", "/api/v2/costs/sandboxes", params=params).json()
+        return SandboxCostReport.model_validate(data["costs"])
+
+
+class AsyncMeResource:
+    def __init__(self, transport: _AsyncTransport) -> None:
+        self._transport = transport
+
+    async def get(self) -> Me:
+        return Me.model_validate((await self._transport.request("GET", "/api/v2/me")).json())
+
+
+class AsyncAuditEvents:
+    def __init__(self, transport: _AsyncTransport) -> None:
+        self._transport = transport
+
+    async def list(
+        self,
+        *,
+        api_key_id: str | None = None,
+        type: AuditEventType | None = None,
+        resource_id: str | None = None,
+        method: AuditMethod | None = None,
+        outcome: Literal["success", "error"] | None = None,
+        from_: str | None = None,
+        to: str | None = None,
+        before: str | None = None,
+        limit: int | None = None,
+    ) -> AuditEventPage:
+        params = _params(
+            {
+                "apiKeyId": api_key_id,
+                "type": type,
+                "resourceId": resource_id,
+                "method": method,
+                "outcome": outcome,
+                "from": from_,
+                "to": to,
+                "before": before,
+                "limit": limit,
+            }
+        )
+        data = (await self._transport.request("GET", "/api/v2/audit-events", params=params)).json()
+        return AuditEventPage.model_validate(data)
+
+
+class AsyncCosts:
+    def __init__(self, transport: _AsyncTransport) -> None:
+        self._transport = transport
+
+    async def sandboxes(
+        self,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+        api_key_id: str | None = None,
+    ) -> SandboxCostReport:
+        params = _params({"from": from_, "to": to, "apiKeyId": api_key_id})
+        data = (
+            await self._transport.request("GET", "/api/v2/costs/sandboxes", params=params)
+        ).json()
+        return SandboxCostReport.model_validate(data["costs"])
+
+
 class BoxCompute:
     def __init__(
         self,
@@ -802,6 +1113,11 @@ class BoxCompute:
         self.operations = Operations(self._transport)
         self.files = Files(self._transport)
         self.usage = UsageResource(self._transport)
+        self.me = MeResource(self._transport)
+        self.audit_events = AuditEvents(self._transport)
+        self.costs = Costs(self._transport)
+        self.deleted_sandboxes = DeletedSandboxes(self._transport)
+        self.previews = Previews(self._transport)
 
     def close(self) -> None:
         self._transport.close()
@@ -831,6 +1147,11 @@ class AsyncBoxCompute:
         self.operations = AsyncOperations(self._transport)
         self.files = AsyncFiles(self._transport)
         self.usage = AsyncUsageResource(self._transport)
+        self.me = AsyncMeResource(self._transport)
+        self.audit_events = AsyncAuditEvents(self._transport)
+        self.costs = AsyncCosts(self._transport)
+        self.deleted_sandboxes = AsyncDeletedSandboxes(self._transport)
+        self.previews = AsyncPreviews(self._transport)
 
     async def close(self) -> None:
         await self._transport.close()

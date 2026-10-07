@@ -38,6 +38,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Introspect the API key's account
+         * @description Returns the account and API key the bearer token authenticates, to confirm which identity a token represents.
+         */
+        get: operations["getCurrentIdentity"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/workspaces": {
         parameters: {
             query?: never;
@@ -71,7 +91,7 @@ export interface paths {
         put?: never;
         /**
          * Create and start a Sandbox in an owned workspace
-         * @description VM Sandboxes require Idempotency-Key and return promptly as pending while durable reconciliation provisions the fixed VM profile. Reuse the same key to recover the same public Sandbox; replay returns 202 while pending and 201 once ready.
+         * @description VM Sandboxes require Idempotency-Key and return promptly as pending while durable reconciliation provisions the fixed VM profile. Reuse the same key to recover the same public Sandbox; replay returns 202 while pending and 201 once ready. A VM refused by the account's Sandbox or storage limit becomes expired, and replay returns 429 with the reason.
          */
         post: operations["createSandbox"];
         delete?: never;
@@ -93,6 +113,26 @@ export interface paths {
         post?: never;
         /** Delete an owned Sandbox and its volume */
         delete: operations["deleteSandbox"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sandboxes/{id}/analytics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read bounded lifecycle, operation, and resource analytics
+         * @description Returns generation-safe customer aggregates for one owned logical Sandbox. Missing resource telemetry is distinct from a numeric zero, and the response never exposes provider or Kubernetes identifiers.
+         */
+        get: operations["getSandboxAnalytics"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -132,6 +172,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/sandboxes/{id}/previews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a one-hour HTTP/WebSocket preview for one VM port
+         * @description Creates an in-memory bearer hostname backed by an app-owned Tailcat client. The Sandbox must be an owned, running, network-enabled VM. The hostname is removed after one hour or explicit close; guest revoke remains an untrusted cooperative report.
+         */
+        post: operations["createSandboxPreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sandboxes/{id}/previews/{previewId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Close an exact browser preview
+         * @description Removes the bearer hostname, stops the app-owned client, and attempts exact-generation guest revoke. This is not host-confirmed transport retirement.
+         */
+        delete: operations["closeSandboxPreview"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/sandboxes/{id}/services": {
         parameters: {
             query?: never;
@@ -142,8 +222,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Create selected TCP access on an operator-pinned active runtime (default off)
-         * @description Required UUIDv4 Idempotency-Key and immutable requested_at. One retained client, 1–8 strictly ascending unique ports, exact requested_at+300 expiry. No provisioning or mutation retry. Returns only a sealed capability.
+         * Open selected TCP access to an owned active VM (default off)
+         * @description Required UUIDv4 Idempotency-Key and immutable requested_at. One retained client, 1–8 strictly ascending unique ports, exact requested_at+3600 expiry. No provisioning or mutation retry. Returns only a sealed capability.
          */
         post: operations["createServiceAccess"];
         delete?: never;
@@ -181,7 +261,7 @@ export interface paths {
         post?: never;
         /**
          * Revoke the exact service generation
-         * @description Guardian-confirmed is an authenticated daemon response, not independent physical-stop proof. Uncertain cleanup returns an error, never success.
+         * @description The cleanup field reports the runtime profile's evidence. VM guest reports are untrusted and never represented as independent physical-stop proof.
          */
         delete: operations["revokeServiceAccess"];
         options?: never;
@@ -477,6 +557,120 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/deleted-sandboxes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List deleted Sandboxes, newest first
+         * @description Read-only history kept for about 15 months after deletion. A deleted Sandbox holds no compute, quota or storage; its retained logs remain readable while the log store keeps them (about 30 days).
+         */
+        get: operations["listDeletedSandboxes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/deleted-sandboxes/{id}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a deleted Sandbox's retained logs
+         * @description Defaults to the most recent runtime; pass one of the Sandbox's runtimes to read an earlier one.
+         */
+        get: operations["listDeletedSandboxLogs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/costs/sandboxes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compute cost per API key and per Sandbox
+         * @description Settled charges are exact ledger amounts for runs that ended in the window (default: last 30 days); estimatedMicros covers runs still in progress and is replaced by the settled charge once the run is finalized. Includes deleted Sandboxes. Pass apiKeyId=none for Sandboxes not created with an API key. Billing is per second with a 60-second minimum per run.
+         */
+        get: operations["getSandboxCostReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/sandboxes/{id}/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every charged run of a Sandbox, with a running estimate */
+        get: operations["getSandboxCosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/deleted-sandboxes/{id}/costs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Every charged run of a deleted Sandbox */
+        get: operations["getDeletedSandboxCosts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/audit-events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the account's API audit log, newest first
+         * @description Every API-key request plus key creation, revocation and rejected-key attempts. Page with nextCursor as before. Reads are retained 31 days; writes and key events about 15 months. Each API response's Request-Id header matches an event's requestId.
+         */
+        get: operations["listAuditEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -496,8 +690,8 @@ export interface components {
         };
         ServiceAccessRevoke: {
             generation_id: string;
-            /** @constant */
-            cleanup: "guardian-confirmed";
+            /** @enum {string} */
+            cleanup: "guardian-confirmed" | "untrusted-guest-report";
         };
         CooperativeConnectionKeys: {
             client_key: string;
@@ -517,13 +711,27 @@ export interface components {
         };
         Error: {
             /** @enum {string} */
-            code: "AUTHENTICATION_REQUIRED" | "INVALID_API_KEY" | "INSUFFICIENT_SCOPE" | "INSUFFICIENT_CREDIT" | "BILLING_ACCOUNT_FROZEN" | "FEATURE_ACCESS_DENIED" | "INVALID_REQUEST" | "INVALID_PATH" | "INVALID_RANGE" | "INVALID_CURSOR" | "CURSOR_STALE" | "NOT_FOUND" | "FILE_NOT_FOUND" | "DESTINATION_EXISTS" | "PRECONDITION_FAILED" | "EDIT_CONFLICT" | "BINARY_FILE" | "EXECUTION_TIMEOUT" | "PAYLOAD_TOO_LARGE" | "SANDBOX_UNAVAILABLE" | "UNSUPPORTED_MEDIA_TYPE" | "INVALID_IDEMPOTENCY_KEY" | "IDEMPOTENCY_CONFLICT" | "WORKSPACE_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE";
+            code: "AUTHENTICATION_REQUIRED" | "INVALID_API_KEY" | "INSUFFICIENT_SCOPE" | "INSUFFICIENT_CREDIT" | "BILLING_ACCOUNT_FROZEN" | "FEATURE_ACCESS_DENIED" | "INVALID_REQUEST" | "INVALID_PATH" | "INVALID_RANGE" | "INVALID_CURSOR" | "CURSOR_STALE" | "NOT_FOUND" | "FILE_NOT_FOUND" | "DESTINATION_EXISTS" | "PRECONDITION_FAILED" | "EDIT_CONFLICT" | "BINARY_FILE" | "EXECUTION_TIMEOUT" | "PAYLOAD_TOO_LARGE" | "SANDBOX_UNAVAILABLE" | "UNSUPPORTED_MEDIA_TYPE" | "INVALID_IDEMPOTENCY_KEY" | "IDEMPOTENCY_CONFLICT" | "WORKSPACE_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE" | "RATE_LIMITED";
             error: string;
         };
         Workspace: {
             id: string;
             name: string;
             createdAt: number;
+        };
+        Me: {
+            account: {
+                id: string;
+                email: string | null;
+                name: string | null;
+            };
+            apiKey: {
+                id: string;
+                name: string;
+                scopes: string[];
+                createdAt: number;
+                lastUsedAt: number | null;
+            };
         };
         CreateWorkspaceRequest: {
             name: string;
@@ -539,6 +747,11 @@ export interface components {
             vmSandbox: boolean;
             /** @description Immutable VM network intent: true means no NIC; false means Internet. Omitted for non-VM sandboxes and historical replay responses. */
             blockNetwork?: boolean;
+            /**
+             * @description Immutable VM resource profile. Omitted for historical replay responses written before the selector existed; those rows are small.
+             * @enum {string}
+             */
+            size?: "small" | "large";
             createdAt: number;
             lastUsedAt: number | null;
         };
@@ -553,7 +766,7 @@ export interface components {
             /** @description VM only: defaults to false (Internet) for new requests; true selects no NIC. Ignored for non-VM sandboxes. Historical idempotency replays retain their original blocked intent. */
             blockNetwork?: boolean;
             /**
-             * @description VM only: compute size tier. Omitted or "small" selects 0.5 vCPU and 1024 MiB; "large" selects 1.5 vCPU and 3072 MiB (3x small). The workspace stays 10 GiB. Ignored for non-VM sandboxes. Historical idempotency replays retain their original size.
+             * @description VM only: resource profile. Omitted or "small" is 0.5 vCPU / 1024 MiB; "large" is 1.5 vCPU / 3072 MiB. Both default to a 30 GiB thin-provisioned workspace. "small" is ignored for gVisor sandboxes and "large" is rejected with INVALID_ARGUMENT. Historical idempotency replays retain their original size and workspace capacity.
              * @default small
              * @enum {string}
              */
@@ -574,6 +787,18 @@ export interface components {
             maxOutputBytes: number;
         } & {
             [key: string]: unknown;
+        };
+        CreatePreviewRequest: {
+            port: number;
+        };
+        Preview: {
+            previewId: string;
+            sandboxId: string;
+            port: number;
+            /** Format: uri */
+            url: string;
+            /** Format: date-time */
+            expiresAt: string;
         };
         StartOperationRequest: {
             argv: string[];
@@ -654,6 +879,133 @@ export interface components {
             }[];
             truncated: boolean;
             retention_seconds: number;
+        };
+        DeletedSandbox: {
+            id: string;
+            sandboxId: string;
+            name: string;
+            workspaceId: string;
+            workspaceName: string | null;
+            vmSandbox: boolean;
+            size: string;
+            runtimes: string[];
+            /** @enum {string} */
+            deletedVia: "console" | "api" | "agent" | "workspace";
+            deletedByApiKeyId: string | null;
+            createdAt: number;
+            lastUsedAt: number | null;
+            deletedAt: number;
+        };
+        SandboxCostReport: {
+            from: number;
+            to: number;
+            /** @constant */
+            currency: "usd";
+            /** @enum {string} */
+            estimates: "available" | "not_applicable" | "unavailable";
+            totals: {
+                runs: number;
+                billableSeconds: number;
+                settledMicros: number;
+                estimatedMicros: number;
+            };
+            apiKeys: {
+                runs: number;
+                billableSeconds: number;
+                settledMicros: number;
+                estimatedMicros: number;
+                apiKey: {
+                    id: string;
+                    name: string;
+                    hint: string;
+                    revoked: boolean;
+                } | null;
+                sandboxes: number;
+            }[];
+            sandboxes: {
+                runs: number;
+                billableSeconds: number;
+                settledMicros: number;
+                estimatedMicros: number;
+                id: string;
+                sandboxId: string;
+                name: string;
+                deleted: boolean;
+                vmSandbox: boolean;
+                size: string;
+                createdByApiKeyId: string | null;
+                createdAt: number;
+                deletedAt: number | null;
+                firstStartedAt: number | null;
+                lastEndedAt: number | null;
+            }[];
+            unattributed: {
+                runs: number;
+                billableSeconds: number;
+                settledMicros: number;
+                estimatedMicros: number;
+            };
+        };
+        SandboxCostDetail: {
+            sandbox: {
+                runs: number;
+                billableSeconds: number;
+                settledMicros: number;
+                estimatedMicros: number;
+                id: string;
+                sandboxId: string;
+                name: string;
+                deleted: boolean;
+                vmSandbox: boolean;
+                size: string;
+                createdByApiKeyId: string | null;
+                createdAt: number;
+                deletedAt: number | null;
+                firstStartedAt: number | null;
+                lastEndedAt: number | null;
+            };
+            createdByApiKey: {
+                id: string;
+                name: string;
+                hint: string;
+                revoked: boolean;
+            } | null;
+            /** @constant */
+            currency: "usd";
+            /** @enum {string} */
+            estimates: "available" | "not_applicable" | "unavailable";
+            runs: {
+                startedAt: number;
+                endedAt: number;
+                runtimeSeconds: number;
+                billableSeconds: number;
+                rateMicrosPerMinute: number;
+                amountMicros: number;
+            }[];
+            running: {
+                startedAt: number;
+                billableSeconds: number;
+                estimatedMicros: number;
+            }[];
+            truncated: boolean;
+        };
+        DeletedSandboxList: {
+            deletedSandboxes: {
+                id: string;
+                sandboxId: string;
+                name: string;
+                workspaceId: string;
+                workspaceName: string | null;
+                vmSandbox: boolean;
+                size: string;
+                runtimes: string[];
+                /** @enum {string} */
+                deletedVia: "console" | "api" | "agent" | "workspace";
+                deletedByApiKeyId: string | null;
+                createdAt: number;
+                lastUsedAt: number | null;
+                deletedAt: number;
+            }[];
         };
         WorkspacePath: string;
         FileStat: {
@@ -737,6 +1089,112 @@ export interface components {
                 createdAt: number;
             }[];
         };
+        AuditEvent: {
+            id: string;
+            /** @enum {string} */
+            type: "api.request" | "api_key.created" | "api_key.revoked" | "api_key.rejected";
+            createdAt: number;
+            requestId: string | null;
+            actor: {
+                /** @enum {string} */
+                type: "api_key" | "session";
+                apiKey: {
+                    id: string;
+                    name: string | null;
+                    hint: string | null;
+                } | null;
+                ipAddress: string | null;
+                userAgent: string | null;
+            };
+            request: {
+                method: string;
+                route: string | null;
+                path: string;
+                status: number;
+                durationMs: number;
+            } | null;
+            resourceId: string | null;
+        };
+        AuditEventPage: {
+            events: {
+                id: string;
+                /** @enum {string} */
+                type: "api.request" | "api_key.created" | "api_key.revoked" | "api_key.rejected";
+                createdAt: number;
+                requestId: string | null;
+                actor: {
+                    /** @enum {string} */
+                    type: "api_key" | "session";
+                    apiKey: {
+                        id: string;
+                        name: string | null;
+                        hint: string | null;
+                    } | null;
+                    ipAddress: string | null;
+                    userAgent: string | null;
+                };
+                request: {
+                    method: string;
+                    route: string | null;
+                    path: string;
+                    status: number;
+                    durationMs: number;
+                } | null;
+                resourceId: string | null;
+            }[];
+            nextCursor: string | null;
+        };
+        SandboxAnalytics: {
+            sandboxId: string;
+            from: number;
+            to: number;
+            resolutionSeconds: number;
+            retentionSeconds: number;
+            generationsTruncated: boolean;
+            selectedGeneration: number | null;
+            operationsTruncated: boolean;
+            generations: {
+                generation: number;
+                /** @enum {string} */
+                runtimeClass: "container" | "vm";
+                startedAt: number;
+                readyAt: number | null;
+                stoppedAt: number | null;
+                finalizedAt: number | null;
+                startupDurationMs: number | null;
+                runtimeDurationMs: number | null;
+            }[];
+            operations: {
+                bucketStart: number;
+                generation: number | null;
+                operations: number;
+                executions: number;
+                durationMs: number;
+                executionDurationMs: number;
+                outputBytes: number;
+                failures: number;
+            }[];
+            resources: {
+                /** @enum {string} */
+                status: "available" | "partial" | "unavailable" | "not_configured";
+                /** @enum {string} */
+                coverage: "available" | "partial" | "expired";
+                retentionStart: number;
+                series: {
+                    generation: number;
+                    /** @enum {string} */
+                    metric: "cpu_usage_cores" | "memory_working_set_bytes" | "network_receive_bytes_per_second" | "network_transmit_bytes_per_second" | "filesystem_read_bytes_per_second" | "filesystem_write_bytes_per_second" | "filesystem_usage_bytes" | "restarts_total" | "oom_kills_total";
+                    /** @enum {string} */
+                    unit: "cores" | "bytes" | "bytes_per_second" | "count";
+                    /** @enum {string} */
+                    availability: "available" | "no_data";
+                    points: [
+                        number,
+                        number
+                    ][];
+                }[];
+            };
+        };
     };
     responses: never;
     parameters: {
@@ -786,6 +1244,44 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getCurrentIdentity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The authenticated account and API key */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Me"];
+                };
             };
             /** @description Missing or invalid API key */
             401: {
@@ -1080,6 +1576,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description The account's Sandbox count or workspace storage limit is reached; stopped Sandboxes count toward both */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -1200,6 +1705,81 @@ export interface operations {
             };
             /** @description Sandbox service unavailable */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSandboxAnalytics: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                resolutionSeconds?: number;
+                generation?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        analytics: components["schemas"]["SandboxAnalytics"];
+                    };
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Per-account analytics request limit exceeded */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1386,6 +1966,166 @@ export interface operations {
             };
             /** @description Sandbox service unavailable */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    createSandboxPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreatePreviewRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        preview: components["schemas"]["Preview"];
+                    };
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The VM already has a preview tunnel */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body exceeds 128 KiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body is not application/json */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Preview transport unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    closeSandboxPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+                /** @description Random browser-preview capability identifier. */
+                previewId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Preview closed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Preview URL is disabled but cleanup remains pending */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1842,6 +2582,15 @@ export interface operations {
             };
             /** @description Request body is not application/json */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The account's Sandbox count or workspace storage limit is reached; stopped Sandboxes count toward both */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3344,6 +4093,353 @@ export interface operations {
                     "application/json": {
                         usage: components["schemas"]["Usage"];
                     };
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listDeletedSandboxes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeletedSandboxList"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listDeletedSandboxLogs: {
+        parameters: {
+            query?: {
+                since?: string;
+                until?: string;
+                stream?: "stdout" | "stderr";
+                source?: "workload" | "execute" | "process";
+                limit?: number;
+                runtime?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        logs: components["schemas"]["SandboxLogs"];
+                    };
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSandboxCostReport: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                apiKeyId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        costs: components["schemas"]["SandboxCostReport"];
+                    };
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getSandboxCosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        costs: components["schemas"]["SandboxCostDetail"];
+                    };
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getDeletedSandboxCosts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        costs: components["schemas"]["SandboxCostDetail"];
+                    };
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listAuditEvents: {
+        parameters: {
+            query?: {
+                apiKeyId?: string;
+                type?: "api.request" | "api_key.created" | "api_key.revoked" | "api_key.rejected";
+                resourceId?: string;
+                method?: "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE";
+                outcome?: "success" | "error";
+                from?: string;
+                to?: string;
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditEventPage"];
                 };
             };
             /** @description Invalid request */

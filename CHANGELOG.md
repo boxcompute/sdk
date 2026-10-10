@@ -3,6 +3,19 @@
 All notable SDK changes are documented here. The TypeScript and Python packages
 version independently; each entry names the affected package and version.
 
+## SDK release 2026-10-10
+
+### `@boxcompute/sdk` 0.4.0 and `boxcompute` 0.4.0
+
+- Added `billing.get()` for remaining credit, all-time settled AI/compute
+  spending, reservations and running estimates.
+- Added `billing.transactions()` for filtered, cursor-paginated wallet entries.
+- Amounts are signed integer micro-USD. Spendable credit is null when live
+  compute estimates are unavailable; observed AI costs are not wallet debits.
+- Both resources require `usage:read`. Existing SDK calls remain compatible.
+- Upgrade with `npm install @boxcompute/sdk@latest` or
+  `pip install --upgrade boxcompute` after the billing API rollout.
+
 ## SDK release 2026-10-07
 
 ### `@boxcompute/sdk` 0.3.0

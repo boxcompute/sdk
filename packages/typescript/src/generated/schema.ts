@@ -617,6 +617,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/billing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read remaining credit and settled AI/compute spending
+         * @description Amounts are integer micro-USD (1000000 = $1). Settled usage is all-time; holds and running compute are separate. availableMicros is null when live compute estimates are unavailable. Observation-mode AI does not debit the wallet. This read never starts or resumes compute.
+         */
+        get: operations["getBillingSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v2/billing/transactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Page the account's verified wallet transactions
+         * @description Newest first, ordered by creation time and ID. Pass nextCursor as before. from is inclusive and to exclusive. Positive amountMicros adds credit; negative subtracts it. Entries are bucket-level, so one charge may have multiple entries. Quarantined usage and zero-value expiry bookkeeping are excluded. No internal payment references or operator identities are returned.
+         */
+        get: operations["listBillingTransactions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/sandboxes/{id}/costs": {
         parameters: {
             query?: never;
@@ -675,6 +715,66 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        BillingSummary: {
+            /** @constant */
+            currency: "usd";
+            /** @enum {string} */
+            accountStatus: "active" | "frozen";
+            balance: {
+                cashMicros: number;
+                promoMicros: number;
+                planMicros: number;
+                totalMicros: number;
+                /** @description Spendable credit after holds and running compute; null when compute estimates are unavailable. */
+                availableMicros: number | null;
+                reservedMicros: number;
+                expiringPromo: {
+                    micros: number;
+                    expiresAt: number;
+                } | null;
+            };
+            /** @description All-time verified wallet deductions for AI and compute. Excludes holds, running estimates and observed AI costs. */
+            settledUsage: {
+                aiMicros: number;
+                sandboxMicros: number;
+                totalMicros: number;
+            };
+            activeEstimate: {
+                /** @enum {string} */
+                status: "available" | "not_applicable" | "unavailable";
+                asOf: string | null;
+                runtimeSeconds: number;
+                billableSeconds: number;
+                amountMicros: number | null;
+            };
+            /** @enum {string} */
+            modelBillingMode: "observe" | "enforced";
+        };
+        BillingTransaction: {
+            id: string;
+            kind: string;
+            /** @enum {string} */
+            bucket: "cash" | "promo" | "plan";
+            amountMicros: number;
+            description: string;
+            createdAt: number;
+            expiresAt: number | null;
+        };
+        BillingTransactionPage: {
+            /** @constant */
+            currency: "usd";
+            transactions: {
+                id: string;
+                kind: string;
+                /** @enum {string} */
+                bucket: "cash" | "promo" | "plan";
+                amountMicros: number;
+                description: string;
+                createdAt: number;
+                expiresAt: number | null;
+            }[];
+            nextCursor: string | null;
+        };
         StartSandboxRequest: Record<string, never>;
         ServiceAccessRequest: {
             requested_at: number;
@@ -711,7 +811,7 @@ export interface components {
         };
         Error: {
             /** @enum {string} */
-            code: "AUTHENTICATION_REQUIRED" | "INVALID_API_KEY" | "INSUFFICIENT_SCOPE" | "INSUFFICIENT_CREDIT" | "BILLING_ACCOUNT_FROZEN" | "FEATURE_ACCESS_DENIED" | "INVALID_REQUEST" | "INVALID_PATH" | "INVALID_RANGE" | "INVALID_CURSOR" | "CURSOR_STALE" | "NOT_FOUND" | "FILE_NOT_FOUND" | "DESTINATION_EXISTS" | "PRECONDITION_FAILED" | "EDIT_CONFLICT" | "BINARY_FILE" | "EXECUTION_TIMEOUT" | "PAYLOAD_TOO_LARGE" | "SANDBOX_UNAVAILABLE" | "UNSUPPORTED_MEDIA_TYPE" | "INVALID_IDEMPOTENCY_KEY" | "IDEMPOTENCY_CONFLICT" | "WORKSPACE_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE" | "RATE_LIMITED";
+            code: "AUTHENTICATION_REQUIRED" | "INVALID_API_KEY" | "INSUFFICIENT_SCOPE" | "INSUFFICIENT_CREDIT" | "BILLING_ACCOUNT_FROZEN" | "FEATURE_ACCESS_DENIED" | "INVALID_REQUEST" | "INVALID_PATH" | "INVALID_RANGE" | "INVALID_CURSOR" | "CURSOR_STALE" | "NOT_FOUND" | "FILE_NOT_FOUND" | "DESTINATION_EXISTS" | "PRECONDITION_FAILED" | "EDIT_CONFLICT" | "BINARY_FILE" | "EXECUTION_TIMEOUT" | "PAYLOAD_TOO_LARGE" | "SANDBOX_UNAVAILABLE" | "UNSUPPORTED_MEDIA_TYPE" | "UNSUPPORTED_FEATURE" | "INVALID_IDEMPOTENCY_KEY" | "IDEMPOTENCY_CONFLICT" | "WORKSPACE_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE" | "RATE_LIMITED";
             error: string;
         };
         Workspace: {
@@ -1585,6 +1685,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -1646,6 +1755,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -1696,6 +1814,15 @@ export interface operations {
             };
             /** @description Owned resource not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1854,6 +1981,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -1957,6 +2093,15 @@ export interface operations {
             };
             /** @description Request body is not application/json */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2216,6 +2361,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -2301,6 +2455,15 @@ export interface operations {
             };
             /** @description Request body is not application/json */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2395,6 +2558,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -2478,6 +2650,15 @@ export interface operations {
             };
             /** @description Request body is not application/json */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2598,6 +2779,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -2689,6 +2879,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -2742,6 +2941,15 @@ export interface operations {
             };
             /** @description Owned resource not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2860,6 +3068,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -2914,6 +3131,15 @@ export interface operations {
             };
             /** @description Owned resource not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2988,6 +3214,15 @@ export interface operations {
             };
             /** @description Owned resource not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3087,6 +3322,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -3141,6 +3385,15 @@ export interface operations {
             };
             /** @description Owned resource not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3238,6 +3491,15 @@ export interface operations {
             };
             /** @description File request or response exceeds its byte or entry limit */
             413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3360,6 +3622,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -3470,6 +3741,15 @@ export interface operations {
             };
             /** @description Request body is not application/octet-stream */
             415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3605,6 +3885,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -3706,6 +3995,15 @@ export interface operations {
             };
             /** @description File request or response exceeds its byte or entry limit */
             413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3830,6 +4128,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -3947,6 +4254,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -4046,6 +4362,15 @@ export interface operations {
             };
             /** @description File request or response exceeds its byte or entry limit */
             413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4228,6 +4553,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -4261,6 +4595,100 @@ export interface operations {
                     "application/json": {
                         costs: components["schemas"]["SandboxCostReport"];
                     };
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getBillingSummary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        billing: components["schemas"]["BillingSummary"];
+                    };
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    listBillingTransactions: {
+        parameters: {
+            query?: {
+                from?: string;
+                to?: string;
+                kind?: string;
+                bucket?: "cash" | "promo" | "plan";
+                before?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BillingTransactionPage"];
                 };
             };
             /** @description Invalid request */
@@ -4342,6 +4770,15 @@ export interface operations {
                     "application/json": components["schemas"]["Error"];
                 };
             };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
             /** @description Sandbox service unavailable */
             502: {
                 headers: {
@@ -4396,6 +4833,15 @@ export interface operations {
             };
             /** @description Owned resource not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,4 +1,5 @@
 export {
+  BillingResource,
   AuditEventsResource,
   AuthResource,
   BoxCompute,

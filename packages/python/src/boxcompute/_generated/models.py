@@ -20,6 +20,129 @@ from pydantic import (
 )
 
 
+class AccountStatus(Enum):
+    active = 'active'
+    frozen = 'frozen'
+
+
+class ExpiringPromo(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    micros: conint(ge=-9007199254740991, le=9007199254740991)
+    expires_at: conint(ge=0, le=9007199254740991) = Field(..., alias='expiresAt')
+
+
+class Balance(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    cash_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(..., alias='cashMicros')
+    promo_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='promoMicros'
+    )
+    plan_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(..., alias='planMicros')
+    total_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='totalMicros'
+    )
+    available_micros: conint(ge=-9007199254740991, le=9007199254740991) | None = Field(
+        ..., alias='availableMicros'
+    )
+    """
+    Spendable credit after holds and running compute; null when compute estimates are unavailable.
+    """
+    reserved_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='reservedMicros'
+    )
+    expiring_promo: ExpiringPromo | None = Field(..., alias='expiringPromo')
+
+
+class SettledUsage(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    ai_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(..., alias='aiMicros')
+    sandbox_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='sandboxMicros'
+    )
+    total_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='totalMicros'
+    )
+
+
+class Status(Enum):
+    available = 'available'
+    not_applicable = 'not_applicable'
+    unavailable = 'unavailable'
+
+
+class ActiveEstimate(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    status: Status
+    as_of: str | None = Field(..., alias='asOf')
+    runtime_seconds: confloat(ge=0.0) = Field(..., alias='runtimeSeconds')
+    billable_seconds: confloat(ge=0.0) = Field(..., alias='billableSeconds')
+    amount_micros: conint(ge=-9007199254740991, le=9007199254740991) | None = Field(
+        ..., alias='amountMicros'
+    )
+
+
+class ModelBillingMode(Enum):
+    observe = 'observe'
+    enforced = 'enforced'
+
+
+class BillingSummary(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    currency: Literal['usd']
+    account_status: AccountStatus = Field(..., alias='accountStatus')
+    balance: Balance
+    settled_usage: SettledUsage = Field(..., alias='settledUsage')
+    """
+    All-time verified wallet deductions for AI and compute. Excludes holds, running estimates and observed AI costs.
+    """
+    active_estimate: ActiveEstimate = Field(..., alias='activeEstimate')
+    model_billing_mode: ModelBillingMode = Field(..., alias='modelBillingMode')
+
+
+class Bucket(Enum):
+    cash = 'cash'
+    promo = 'promo'
+    plan = 'plan'
+
+
+class BillingTransaction(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    id: str
+    kind: str
+    bucket: Bucket
+    amount_micros: conint(ge=-9007199254740991, le=9007199254740991) = Field(
+        ..., alias='amountMicros'
+    )
+    description: str
+    created_at: conint(ge=0, le=9007199254740991) = Field(..., alias='createdAt')
+    expires_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='expiresAt')
+
+
+class Transaction(BillingTransaction):
+    pass
+
+
+class BillingTransactionPage(BaseModel):
+    model_config = ConfigDict(
+        extra='ignore',
+    )
+    currency: Literal['usd']
+    transactions: list[Transaction] = Field(..., max_length=200)
+    next_cursor: str | None = Field(..., alias='nextCursor')
+
+
 class StartSandboxRequest(BaseModel):
     model_config = ConfigDict(
         extra='ignore',
@@ -122,6 +245,7 @@ class Code(Enum):
     payload_too_large = 'PAYLOAD_TOO_LARGE'
     sandbox_unavailable = 'SANDBOX_UNAVAILABLE'
     unsupported_media_type = 'UNSUPPORTED_MEDIA_TYPE'
+    unsupported_feature = 'UNSUPPORTED_FEATURE'
     invalid_idempotency_key = 'INVALID_IDEMPOTENCY_KEY'
     idempotency_conflict = 'IDEMPOTENCY_CONFLICT'
     workspace_quota_exceeded = 'WORKSPACE_QUOTA_EXCEEDED'
@@ -409,12 +533,6 @@ class DeletedSandbox(BaseModel):
     deleted_at: conint(ge=0, le=9007199254740991) = Field(..., alias='deletedAt')
 
 
-class Estimates(Enum):
-    available = 'available'
-    not_applicable = 'not_applicable'
-    unavailable = 'unavailable'
-
-
 class Totals(BaseModel):
     model_config = ConfigDict(
         extra='ignore',
@@ -491,7 +609,7 @@ class SandboxCostReport(BaseModel):
     from_: conint(ge=0, le=9007199254740991) = Field(..., alias='from')
     to: conint(ge=0, le=9007199254740991)
     currency: Literal['usd']
-    estimates: Estimates
+    estimates: Status
     totals: Totals
     api_keys: list[ApiKey1] = Field(..., alias='apiKeys')
     sandboxes: list[Sandbox1]
@@ -536,7 +654,7 @@ class SandboxCostDetail(BaseModel):
     sandbox: Sandbox1
     created_by_api_key: CreatedByApiKey | None = Field(..., alias='createdByApiKey')
     currency: Literal['usd']
-    estimates: Estimates
+    estimates: Status
     runs: list[Run] = Field(..., max_length=1000)
     running: list[RunningItem]
     truncated: bool
@@ -821,7 +939,7 @@ class Operation2(BaseModel):
     failures: conint(ge=0, le=9007199254740991)
 
 
-class Status(Enum):
+class Status1(Enum):
     available = 'available'
     partial = 'partial'
     unavailable = 'unavailable'
@@ -873,7 +991,7 @@ class Resources(BaseModel):
     model_config = ConfigDict(
         extra='ignore',
     )
-    status: Status
+    status: Status1
     coverage: Coverage
     retention_start: conint(ge=0, le=9007199254740991) = Field(..., alias='retentionStart')
     series: list[Series] = Field(..., max_length=9)

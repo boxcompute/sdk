@@ -5,6 +5,94 @@ import pytest
 
 from boxcompute import AsyncBoxCompute, BoxCompute, BoxComputeError, BoxComputeTransportError
 
+BILLING = {
+    "currency": "usd",
+    "accountStatus": "active",
+    "balance": {
+        "cashMicros": 0,
+        "promoMicros": 100_000,
+        "planMicros": 0,
+        "totalMicros": 100_000,
+        "availableMicros": None,
+        "reservedMicros": 2_000,
+        "expiringPromo": None,
+    },
+    "settledUsage": {"aiMicros": 1_000, "sandboxMicros": 2_000, "totalMicros": 3_000},
+    "activeEstimate": {
+        "status": "unavailable",
+        "asOf": None,
+        "runtimeSeconds": 0,
+        "billableSeconds": 0,
+        "amountMicros": None,
+    },
+    "modelBillingMode": "observe",
+}
+TRANSACTIONS = {
+    "currency": "usd",
+    "nextCursor": "next/2",
+    "transactions": [
+        {
+            "id": "entry-1",
+            "kind": "usage_charge",
+            "bucket": "promo",
+            "amountMicros": -2_000,
+            "description": "Compute",
+            "createdAt": 1,
+            "expiresAt": None,
+        }
+    ],
+}
+
+
+def billing_handler(request: httpx.Request) -> httpx.Response:
+    assert request.headers["authorization"] == "Bearer bc_live_test"
+    if request.url.path == "/api/v2/billing":
+        return httpx.Response(200, json={"billing": BILLING})
+    assert request.url.path == "/api/v2/billing/transactions"
+    assert dict(request.url.params) == {
+        "before": "cur/1",
+        "limit": "20",
+        "bucket": "promo",
+        "kind": "usage_charge",
+        "from": "2026-10-01T00:00:00Z",
+    }
+    return httpx.Response(200, json=TRANSACTIONS)
+
+
+def test_reads_credit_and_transaction_models() -> None:
+    http = httpx.Client(
+        base_url="https://api.boxcompute.ai", transport=httpx.MockTransport(billing_handler)
+    )
+    with BoxCompute(api_key="bc_live_test", http_client=http) as client:
+        assert client.billing.get().balance.available_micros is None
+        page = client.billing.transactions(
+            before="cur/1",
+            limit=20,
+            bucket="promo",
+            kind="usage_charge",
+            from_="2026-10-01T00:00:00Z",
+        )
+        assert page.transactions[0].amount_micros == -2_000
+        assert page.next_cursor == "next/2"
+
+
+@pytest.mark.asyncio
+async def test_reads_async_credit_and_transaction_models() -> None:
+    http = httpx.AsyncClient(
+        base_url="https://api.boxcompute.ai", transport=httpx.MockTransport(billing_handler)
+    )
+    async with AsyncBoxCompute(api_key="bc_live_test", http_client=http) as client:
+        assert (await client.billing.get()).balance.available_micros is None
+        page = await client.billing.transactions(
+            before="cur/1",
+            limit=20,
+            bucket="promo",
+            kind="usage_charge",
+            from_="2026-10-01T00:00:00Z",
+        )
+        assert page.transactions[0].amount_micros == -2_000
+        assert page.next_cursor == "next/2"
+
 
 def test_authenticates_and_unwraps_workspaces() -> None:
     def handler(request: httpx.Request) -> httpx.Response:

@@ -483,6 +483,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -567,6 +577,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -626,6 +646,16 @@
           },
           "404": {
             "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -911,6 +941,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -1047,6 +1087,16 @@
           },
           "415": {
             "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -1395,6 +1445,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -1519,6 +1579,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -1626,6 +1696,16 @@
           },
           "415": {
             "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -1743,6 +1823,16 @@
           },
           "415": {
             "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -1899,6 +1989,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -2023,6 +2123,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -2097,6 +2207,16 @@
           },
           "404": {
             "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -2245,6 +2365,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -2324,6 +2454,16 @@
           },
           "404": {
             "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -2461,6 +2601,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -2588,6 +2738,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -2667,6 +2827,16 @@
           },
           "404": {
             "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -2793,6 +2963,16 @@
           },
           "413": {
             "description": "File request or response exceeds its byte or entry limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -3005,6 +3185,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -3147,6 +3337,16 @@
           },
           "415": {
             "description": "Request body is not application/octet-stream",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -3320,6 +3520,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -3476,6 +3686,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -3617,6 +3837,16 @@
           },
           "415": {
             "description": "Request body is not application/json",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -3775,6 +4005,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -3920,6 +4160,16 @@
           },
           "413": {
             "description": "File request or response exceeds its byte or entry limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -4212,6 +4462,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -4280,6 +4540,174 @@
                       "$ref": "#/components/schemas/SandboxCostReport"
                     }
                   }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/billing": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "usage:read",
+        "operationId": "getBillingSummary",
+        "summary": "Read remaining credit and settled AI/compute spending",
+        "description": "Amounts are integer micro-USD (1000000 = $1). Settled usage is all-time; holds and running compute are separate. availableMicros is null when live compute estimates are unavailable. Observation-mode AI does not debit the wallet. This read never starts or resumes compute.",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "billing"
+                  ],
+                  "properties": {
+                    "billing": {
+                      "$ref": "#/components/schemas/BillingSummary"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "API key lacks the required scope",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v2/billing/transactions": {
+      "get": {
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "x-boxcompute-required-scope": "usage:read",
+        "operationId": "listBillingTransactions",
+        "summary": "Page the account's verified wallet transactions",
+        "description": "Newest first, ordered by creation time and ID. Pass nextCursor as before. from is inclusive and to exclusive. Positive amountMicros adds credit; negative subtracts it. Entries are bucket-level, so one charge may have multiple entries. Quarantined usage and zero-value expiry bookkeeping are excluded. No internal payment references or operator identities are returned.",
+        "parameters": [
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time",
+              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z|([+-](?:[01]\\d|2[0-3]):[0-5]\\d)))$"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "bucket",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "cash",
+                "promo",
+                "plan"
+              ]
+            }
+          },
+          {
+            "name": "before",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "default": 50,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BillingTransactionPage"
                 }
               }
             }
@@ -4388,6 +4816,16 @@
               }
             }
           },
+          "501": {
+            "description": "Operation unsupported by this runtime",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
           "502": {
             "description": "Sandbox service unavailable",
             "content": {
@@ -4464,6 +4902,16 @@
           },
           "404": {
             "description": "Owned resource not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "501": {
+            "description": "Operation unsupported by this runtime",
             "content": {
               "application/json": {
                 "schema": {
@@ -4671,6 +5119,333 @@
       }
     },
     "schemas": {
+      "BillingSummary": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "const": "usd"
+          },
+          "accountStatus": {
+            "type": "string",
+            "enum": [
+              "active",
+              "frozen"
+            ]
+          },
+          "balance": {
+            "type": "object",
+            "properties": {
+              "cashMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "promoMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "planMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "totalMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "availableMicros": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Spendable credit after holds and running compute; null when compute estimates are unavailable."
+              },
+              "reservedMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "expiringPromo": {
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "micros": {
+                        "type": "integer",
+                        "minimum": -9007199254740991,
+                        "maximum": 9007199254740991
+                      },
+                      "expiresAt": {
+                        "type": "integer",
+                        "minimum": 0,
+                        "maximum": 9007199254740991
+                      }
+                    },
+                    "required": [
+                      "micros",
+                      "expiresAt"
+                    ],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "cashMicros",
+              "promoMicros",
+              "planMicros",
+              "totalMicros",
+              "availableMicros",
+              "reservedMicros",
+              "expiringPromo"
+            ],
+            "additionalProperties": false
+          },
+          "settledUsage": {
+            "type": "object",
+            "properties": {
+              "aiMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "sandboxMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              },
+              "totalMicros": {
+                "type": "integer",
+                "minimum": -9007199254740991,
+                "maximum": 9007199254740991
+              }
+            },
+            "required": [
+              "aiMicros",
+              "sandboxMicros",
+              "totalMicros"
+            ],
+            "additionalProperties": false,
+            "description": "All-time verified wallet deductions for AI and compute. Excludes holds, running estimates and observed AI costs."
+          },
+          "activeEstimate": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "available",
+                  "not_applicable",
+                  "unavailable"
+                ]
+              },
+              "asOf": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "runtimeSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "billableSeconds": {
+                "type": "number",
+                "minimum": 0
+              },
+              "amountMicros": {
+                "anyOf": [
+                  {
+                    "type": "integer",
+                    "minimum": -9007199254740991,
+                    "maximum": 9007199254740991
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "required": [
+              "status",
+              "asOf",
+              "runtimeSeconds",
+              "billableSeconds",
+              "amountMicros"
+            ],
+            "additionalProperties": false
+          },
+          "modelBillingMode": {
+            "type": "string",
+            "enum": [
+              "observe",
+              "enforced"
+            ]
+          }
+        },
+        "required": [
+          "currency",
+          "accountStatus",
+          "balance",
+          "settledUsage",
+          "activeEstimate",
+          "modelBillingMode"
+        ],
+        "additionalProperties": false
+      },
+      "BillingTransaction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "bucket": {
+            "type": "string",
+            "enum": [
+              "cash",
+              "promo",
+              "plan"
+            ]
+          },
+          "amountMicros": {
+            "type": "integer",
+            "minimum": -9007199254740991,
+            "maximum": 9007199254740991
+          },
+          "description": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "expiresAt": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 0,
+                "maximum": 9007199254740991
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "bucket",
+          "amountMicros",
+          "description",
+          "createdAt",
+          "expiresAt"
+        ],
+        "additionalProperties": false
+      },
+      "BillingTransactionPage": {
+        "type": "object",
+        "properties": {
+          "currency": {
+            "type": "string",
+            "const": "usd"
+          },
+          "transactions": {
+            "maxItems": 200,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string"
+                },
+                "bucket": {
+                  "type": "string",
+                  "enum": [
+                    "cash",
+                    "promo",
+                    "plan"
+                  ]
+                },
+                "amountMicros": {
+                  "type": "integer",
+                  "minimum": -9007199254740991,
+                  "maximum": 9007199254740991
+                },
+                "description": {
+                  "type": "string"
+                },
+                "createdAt": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "expiresAt": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "minimum": 0,
+                      "maximum": 9007199254740991
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "kind",
+                "bucket",
+                "amountMicros",
+                "description",
+                "createdAt",
+                "expiresAt"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "nextCursor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "currency",
+          "transactions",
+          "nextCursor"
+        ],
+        "additionalProperties": false
+      },
       "StartSandboxRequest": {
         "type": "object",
         "properties": {},
@@ -4857,6 +5632,7 @@
               "PAYLOAD_TOO_LARGE",
               "SANDBOX_UNAVAILABLE",
               "UNSUPPORTED_MEDIA_TYPE",
+              "UNSUPPORTED_FEATURE",
               "INVALID_IDEMPOTENCY_KEY",
               "IDEMPOTENCY_CONFLICT",
               "WORKSPACE_QUOTA_EXCEEDED",

@@ -8,6 +8,25 @@ const json = (value: unknown, status = 200, headers: HeadersInit = {}): Response
   });
 
 describe("BoxCompute", () => {
+  it("reads credits and pages wallet entries without losing unknown balances or signed amounts", async () => {
+    const calls: string[] = [];
+    const billing = { balance: { availableMicros: null }, settledUsage: { totalMicros: 1234 } };
+    const page = { currency: "usd", transactions: [{ amountMicros: -1234 }], nextCursor: "next/2" };
+    const client = new BoxCompute({
+      apiKey: "bc_live_test",
+      fetch: async (input) => {
+        calls.push(String(input));
+        return json(calls.length === 1 ? { billing } : page);
+      },
+    });
+    await expect(client.billing.get()).resolves.toEqual(billing);
+    await expect(client.billing.transactions({ before: "cur/1", limit: 20, bucket: "promo",
+      kind: "usage_charge", from: "2026-10-01T00:00:00Z" })).resolves.toEqual(page);
+    expect(calls).toEqual([
+      "https://api.boxcompute.ai/api/v2/billing",
+      "https://api.boxcompute.ai/api/v2/billing/transactions?before=cur%2F1&limit=20&bucket=promo&kind=usage_charge&from=2026-10-01T00%3A00%3A00Z",
+    ]);
+  });
   it("authenticates and unwraps workspace responses", async () => {
     const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
     const client = new BoxCompute({

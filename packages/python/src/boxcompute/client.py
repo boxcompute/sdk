@@ -10,6 +10,8 @@ import httpx
 
 from ._generated.models import (
     AuditEventPage,
+    BillingSummary,
+    BillingTransactionPage,
     DeletedSandbox,
     EditFileResponse,
     ExecutionResult,
@@ -1095,6 +1097,72 @@ class AsyncCosts:
         return SandboxCostReport.model_validate(data["costs"])
 
 
+class BillingResource:
+    def __init__(self, transport: _SyncTransport) -> None:
+        self._transport = transport
+
+    def get(self) -> BillingSummary:
+        data = self._transport.request("GET", "/api/v2/billing").json()
+        return BillingSummary.model_validate(data["billing"])
+
+    def transactions(
+        self,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+        kind: str | None = None,
+        bucket: Literal["cash", "promo", "plan"] | None = None,
+        before: str | None = None,
+        limit: int | None = None,
+    ) -> BillingTransactionPage:
+        params = _params(
+            {
+                "from": from_,
+                "to": to,
+                "kind": kind,
+                "bucket": bucket,
+                "before": before,
+                "limit": limit,
+            }
+        )
+        data = self._transport.request("GET", "/api/v2/billing/transactions", params=params).json()
+        return BillingTransactionPage.model_validate(data)
+
+
+class AsyncBillingResource:
+    def __init__(self, transport: _AsyncTransport) -> None:
+        self._transport = transport
+
+    async def get(self) -> BillingSummary:
+        data = (await self._transport.request("GET", "/api/v2/billing")).json()
+        return BillingSummary.model_validate(data["billing"])
+
+    async def transactions(
+        self,
+        *,
+        from_: str | None = None,
+        to: str | None = None,
+        kind: str | None = None,
+        bucket: Literal["cash", "promo", "plan"] | None = None,
+        before: str | None = None,
+        limit: int | None = None,
+    ) -> BillingTransactionPage:
+        params = _params(
+            {
+                "from": from_,
+                "to": to,
+                "kind": kind,
+                "bucket": bucket,
+                "before": before,
+                "limit": limit,
+            }
+        )
+        data = (
+            await self._transport.request("GET", "/api/v2/billing/transactions", params=params)
+        ).json()
+        return BillingTransactionPage.model_validate(data)
+
+
 class BoxCompute:
     def __init__(
         self,
@@ -1113,6 +1181,7 @@ class BoxCompute:
         self.operations = Operations(self._transport)
         self.files = Files(self._transport)
         self.usage = UsageResource(self._transport)
+        self.billing = BillingResource(self._transport)
         self.me = MeResource(self._transport)
         self.audit_events = AuditEvents(self._transport)
         self.costs = Costs(self._transport)
@@ -1147,6 +1216,7 @@ class AsyncBoxCompute:
         self.operations = AsyncOperations(self._transport)
         self.files = AsyncFiles(self._transport)
         self.usage = AsyncUsageResource(self._transport)
+        self.billing = AsyncBillingResource(self._transport)
         self.me = AsyncMeResource(self._transport)
         self.audit_events = AsyncAuditEvents(self._transport)
         self.costs = AsyncCosts(self._transport)

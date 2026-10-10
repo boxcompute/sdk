@@ -37,11 +37,24 @@ groups. Python offers synchronous `BoxCompute` and asynchronous
 | Files | `files.rename()` | `files.rename()` | Atomically rename a path |
 | Files | `files.remove()` | `files.remove()` | Remove a path |
 | Usage | `usage.get()` | `usage.get()` | Read account usage |
+| Billing | `billing.get()` | `billing.get()` | Remaining credits, settled spending and pending reservations |
+| Billing | `billing.transactions()` | `billing.transactions()` | Page verified wallet transactions |
 | Costs | `costs.sandboxes()` | `costs.sandboxes()` | Compute cost per API key and per Sandbox |
 | Audit log | `auditEvents.list()` | `audit_events.list()` | Page the account's API audit log, newest first |
 
 Python spells the `from` query parameter as `from_`. Audit pages return
 `nextCursor`; pass it as `before` to read the next page.
+
+Billing amounts are integer micro-USD: `1_000_000` is $1.
+`balance.availableMicros` subtracts reservations and running compute from the
+settled balance, and is null when live compute estimates are unavailable.
+`settledUsage` is all-time wallet deductions, excluding pending work and
+observation-mode AI. `billing.transactions()` returns bucket-level entries
+(one charge may spend several buckets), with signed amounts, inclusive `from`,
+exclusive `to`, and cursor pagination. Both reads require `usage:read` and never
+start or resume compute.
+Python response fields use snake_case: `balance.available_micros`,
+`settled_usage.total_micros`, and `next_cursor`.
 
 All file paths must be `/workspace` or a descendant. Identifiers are URL
 encoded by the SDKs. Mutation retries must follow the rules in

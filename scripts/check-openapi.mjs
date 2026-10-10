@@ -26,6 +26,8 @@ const requiredOperations = new Set([
   "renameSandboxFile",
   "removeSandboxFile",
   "getUsage",
+  "getBillingSummary",
+  "listBillingTransactions",
 ]);
 
 if (contract.openapi !== "3.1.0") throw new Error("Expected OpenAPI 3.1.0");

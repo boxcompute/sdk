@@ -72,6 +72,16 @@ See the [API overview](docs/api-reference.md) for the complete cross-language
 surface, plus the guides for [authentication](docs/authentication.md) and
 [idempotent retries](docs/idempotency.md).
 
+## Credits and spending
+
+Use `boxcompute.billing.get()` in TypeScript or Python to read remaining
+credit, all-time settled AI/compute spending, reservations and running estimates.
+Use `boxcompute.billing.transactions()` for paginated wallet entries. Both
+require `usage:read`. Amounts are integer micro-USD (`1_000_000` = $1);
+`balance.availableMicros` (Python: `available_micros`) is null when running
+compute estimates cannot be read. See the [API overview](docs/api-reference.md)
+for filtering and pagination.
+
 ## Contract and releases
 
 `openapi/boxcompute-v2.json` is the versioned SDK contract. TypeScript types and

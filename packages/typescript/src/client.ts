@@ -1,5 +1,8 @@
 import { BoxComputeTransportError, responseError } from "./errors.js";
 import type {
+  BillingSummary,
+  BillingTransactionPage,
+  BillingTransactionsOptions,
   AnalyticsOptions,
   AuditEventPage,
   AuditEventsOptions,
@@ -598,6 +601,25 @@ export class MeResource {
   }
 }
 
+export class BillingResource {
+  constructor(private readonly transport: Transport) {}
+
+  /** Remaining credits, all-time settled spend, reservations and running estimates. */
+  async get(options: RequestOptions = {}): Promise<BillingSummary> {
+    const response = await this.transport.request<{ billing: BillingSummary }>("/api/v2/billing", options);
+    return response.billing;
+  }
+
+  /** Newest-first verified wallet entries; amounts are signed micro-USD. */
+  async transactions(options: BillingTransactionsOptions = {}): Promise<BillingTransactionPage> {
+    const { signal, timeoutMs, ...filters } = options;
+    return await this.transport.request<BillingTransactionPage>(
+      `/api/v2/billing/transactions${query(filters)}`,
+      requestOptions({ signal, timeoutMs }),
+    );
+  }
+}
+
 export class AuditEventsResource {
   constructor(private readonly transport: Transport) {}
 
@@ -626,6 +648,7 @@ export class CostsResource {
 }
 
 export class BoxCompute {
+  readonly billing: BillingResource;
   readonly auth: AuthResource;
   readonly workspaces: WorkspacesResource;
   readonly sandboxes: SandboxesResource;
@@ -640,6 +663,7 @@ export class BoxCompute {
 
   constructor(options: BoxComputeOptions) {
     const transport = new Transport(options.apiKey, options);
+    this.billing = new BillingResource(transport);
     this.auth = new AuthResource(transport);
     this.workspaces = new WorkspacesResource(transport);
     this.sandboxes = new SandboxesResource(transport);

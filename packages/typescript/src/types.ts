@@ -11,6 +11,9 @@ export type FileListEntry = components["schemas"]["FileListEntry"];
 export type FileList = components["schemas"]["FileList"];
 export type SandboxLogs = components["schemas"]["SandboxLogs"];
 export type Usage = components["schemas"]["Usage"];
+export type BillingSummary = components["schemas"]["BillingSummary"];
+export type BillingTransaction = components["schemas"]["BillingTransaction"];
+export type BillingTransactionPage = components["schemas"]["BillingTransactionPage"];
 export type ApiErrorBody = components["schemas"]["Error"];
 export type CreateWorkspaceRequest = components["schemas"]["CreateWorkspaceRequest"];
 export type Me = components["schemas"]["Me"];
@@ -90,6 +93,19 @@ export interface CostReportOptions extends RequestOptions {
   to?: string;
   /** Restrict to one API key, or `"none"` for Sandboxes not created with an API key. */
   apiKeyId?: string;
+}
+
+export interface BillingTransactionsOptions extends RequestOptions {
+  /** Inclusive RFC 3339 start. */
+  from?: string;
+  /** Exclusive RFC 3339 end. */
+  to?: string;
+  kind?: string;
+  bucket?: BillingTransaction["bucket"];
+  /** nextCursor from the previous page. */
+  before?: string;
+  /** Page size, 1–200; defaults to 50. */
+  limit?: number;
 }
 
 export interface AuditEventsOptions extends RequestOptions {

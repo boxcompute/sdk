@@ -35,6 +35,7 @@ import type {
   SandboxCostDetail,
   SandboxCostReport,
   SandboxLogs,
+  SandboxStopResult,
   StartOperationRequest,
   Usage,
   WaitOperationInput,
@@ -261,6 +262,42 @@ export class SandboxesResource {
       options,
     );
     return response.sandbox;
+  }
+
+  /**
+   * Start a stopped Sandbox again, keeping its workspace. Execute and file
+   * calls also wake a stopped VM; call this to have it ready ahead of time.
+   */
+  async start(
+    id: string,
+    input: { idempotencyKey?: string } = {},
+    options: RequestOptions = {},
+  ): Promise<Sandbox> {
+    const payload = jsonBody({});
+    const response = await this.transport.request<{ sandbox: Sandbox }>(
+      `/api/v2/sandboxes/${encodeURIComponent(id)}/start`,
+      {
+        method: "POST",
+        ...payload,
+        ...(input.idempotencyKey ? {
+          headers: { ...payload.headers, "idempotency-key": input.idempotencyKey },
+        } : {}),
+        ...options,
+      },
+    );
+    return response.sandbox;
+  }
+
+  /**
+   * Stop a running VM now instead of waiting for the 30-minute idle stop. Its
+   * /workspace files are kept and running processes end. It never wakes a
+   * stopped VM and needs no credit; `stopped` is false when it was not running.
+   */
+  async stop(id: string, options: RequestOptions = {}): Promise<SandboxStopResult> {
+    return await this.transport.request<SandboxStopResult>(
+      `/api/v2/sandboxes/${encodeURIComponent(id)}/stop`,
+      { method: "POST", ...jsonBody({}), ...options },
+    );
   }
 
   async delete(id: string, options: RequestOptions = {}): Promise<void> {

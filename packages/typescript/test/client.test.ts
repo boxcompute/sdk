@@ -346,4 +346,34 @@ describe("BoxCompute", () => {
     ]);
     expect(JSON.parse(String(calls[0]?.init?.body))).toEqual({ port: 3000 });
   });
+
+  it("starts and stops an existing VM with empty JSON bodies", async () => {
+    const calls: Array<{ url: string; init: RequestInit | undefined }> = [];
+    const sandbox = { id: "sbx_1", workspaceId: "ws_1", name: "vm", state: "cold", vmSandbox: true,
+      createdAt: 1, lastUsedAt: 2 };
+    const client = new BoxCompute({
+      apiKey: "bc_live_test",
+      fetch: async (input, init) => {
+        calls.push({ url: String(input), init });
+        return String(input).endsWith("/stop")
+          ? json({ sandbox, stopped: true })
+          : json({ sandbox: { ...sandbox, state: "running" } }, 201);
+      },
+    });
+
+    await expect(client.sandboxes.start("sbx/1", { idempotencyKey: "wake-1" })).resolves.toMatchObject({
+      state: "running",
+    });
+    await expect(client.sandboxes.stop("sbx/1")).resolves.toEqual({ sandbox, stopped: true });
+    await client.sandboxes.start("sbx_1");
+    expect(calls.map((call) => [call.init?.method, call.url, call.init?.body])).toEqual([
+      ["POST", "https://api.boxcompute.ai/api/v2/sandboxes/sbx%2F1/start", "{}"],
+      ["POST", "https://api.boxcompute.ai/api/v2/sandboxes/sbx%2F1/stop", "{}"],
+      ["POST", "https://api.boxcompute.ai/api/v2/sandboxes/sbx_1/start", "{}"],
+    ]);
+    expect(new Headers(calls[0]?.init?.headers).get("idempotency-key")).toBe("wake-1");
+    expect(new Headers(calls[0]?.init?.headers).get("content-type")).toBe("application/json");
+    expect(new Headers(calls[1]?.init?.headers).get("idempotency-key")).toBeNull();
+    expect(new Headers(calls[2]?.init?.headers).get("idempotency-key")).toBeNull();
+  });
 });

@@ -13,6 +13,8 @@ groups. Python offers synchronous `BoxCompute` and asynchronous
 | Sandboxes | `sandboxes.list()` | `sandboxes.list()` | List Sandbox instances |
 | Sandboxes | `sandboxes.create()` | `sandboxes.create()` | Create and start a Sandbox |
 | Sandboxes | `sandboxes.inspect()` | `sandboxes.inspect()` | Read current Sandbox state |
+| Sandboxes | `sandboxes.start()` | `sandboxes.start()` | Start a stopped Sandbox, keeping its workspace |
+| Sandboxes | `sandboxes.stop()` | `sandboxes.stop()` | Stop a running VM now, keeping its workspace |
 | Sandboxes | `sandboxes.execute()` | `sandboxes.execute()` | Execute and wait for a command |
 | Sandboxes | `sandboxes.logs()` | `sandboxes.logs()` | Read retained Sandbox logs |
 | Sandboxes | `sandboxes.delete()` | `sandboxes.delete()` | Delete a Sandbox |
@@ -63,8 +65,9 @@ encoded by the SDKs. Mutation retries must follow the rules in
 ## VM sandbox sizing
 
 `sandboxes.create()` accepts VM-only runtime options. `vmSandbox` defaults to
-`true` (VM runtime); `false` selects a gVisor container sandbox. `blockNetwork`
-defaults to `false` (Internet) and `true` selects a sandbox without a NIC.
+`true` (VM runtime); new gVisor container sandboxes are no longer created, so
+`false` is rejected with `INVALID_REQUEST`. `blockNetwork` defaults to `false`
+(Internet) and `true` selects a sandbox without a NIC.
 
 `size` selects the VM compute tier and defaults to `"small"`:
 
@@ -73,9 +76,8 @@ defaults to `false` (Internet) and `true` selects a sandbox without a NIC.
 | `"small"` | 0.5 | 1024 MiB | 30 GiB |
 | `"large"` | 1.5 | 3072 MiB | 30 GiB |
 
-Both profiles use a 30 GiB thin-provisioned workspace. `size` is VM-only; gVisor
-sandboxes ignore `"small"` and reject `"large"` with `INVALID_ARGUMENT`. Omit it
-(or pass `"small"`) to use the default. `Sandbox.size` reports the immutable
+Both profiles use a 30 GiB thin-provisioned workspace. Omit `size` (or pass
+`"small"`) to use the default. `Sandbox.size` reports the immutable
 profile; it is absent for historical replays, which are small.
 
 ```ts
@@ -84,4 +86,37 @@ await boxcompute.sandboxes.create({ workspaceId, size: "large", idempotencyKey }
 
 ```python
 boxcompute.sandboxes.create(workspace_id=workspace_id, size="large", idempotency_key=key)
+```
+
+## Starting, stopping and the idle stop
+
+A running VM bills compute until it stops. It stops on its own 30 minutes after
+the last API call that used it, or at once with `sandboxes.stop()`. Its
+`/workspace` files survive a stop; memory and running processes do not.
+
+- **Counts as use:** `sandboxes.start()`, `sandboxes.execute()`, every `files.*`
+  call, `operations.start()`, `previews.create()` and requests to a preview URL.
+- **Does not count:** `sandboxes.inspect()`, `logs()`, `analytics()`, `costs()`,
+  polling or waiting on an operation, and CPU or network activity inside the VM.
+  A background process alone does not keep a VM running.
+
+`Sandbox.lastUsedAt` is the last counted call while the VM runs, so the idle
+stop happens about 30 minutes after it; after a stop it is when the VM stopped.
+`state` is `running` or `cold` (stopped, disk kept).
+
+`sandboxes.stop()` never wakes a stopped VM and needs no credit, so it works at
+zero balance. It returns `{ sandbox, stopped }`, with `stopped` false when the VM
+was not running; a `409` means the VM is still starting, stopping or in use, so
+try again shortly. It requires the `sandbox:create` scope, like `start()`.
+`execute()`, `files.*` and `start()` wake a stopped VM again, which takes about
+30 seconds; `inspect()` never does.
+
+```ts
+const result = await boxcompute.sandboxes.execute(sandbox.id, { argv: ["make", "test"] });
+await boxcompute.sandboxes.stop(sandbox.id); // done for now; files stay
+```
+
+```python
+result = boxcompute.sandboxes.execute(sandbox.id, argv=["make", "test"])
+boxcompute.sandboxes.stop(sandbox.id)  # done for now; files stay
 ```

@@ -25,6 +25,12 @@ export type CreatePreviewRequest = components["schemas"]["CreatePreviewRequest"]
 export type SandboxAnalytics = components["schemas"]["SandboxAnalytics"];
 export type SandboxCostReport = components["schemas"]["SandboxCostReport"];
 export type SandboxCostDetail = components["schemas"]["SandboxCostDetail"];
+/** What `sandboxes.stop()` returns: the Sandbox afterwards, and whether it was running. */
+export interface SandboxStopResult {
+  sandbox: Sandbox;
+  /** False when the VM was not running, so nothing was stopped. */
+  stopped: boolean;
+}
 /** VM compute size tier: `small` (0.5 vCPU / 1024 MiB) or `large` (1.5 vCPU / 3072 MiB). */
 export type VmSandboxSize = "small" | "large";
 

@@ -47,6 +47,12 @@ class FileRead:
     next_cursor: str | None = None
 
 
+@dataclass(frozen=True)
+class SandboxStopResult:
+    sandbox: Sandbox
+    stopped: bool  # False when the VM was not running, so nothing was stopped.
+
+
 def _headers(api_key: str, extra: Mapping[str, str] | None = None) -> dict[str, str]:
     if not api_key.strip():
         raise ValueError("BoxCompute api_key must not be empty")
@@ -237,6 +243,21 @@ class Sandboxes:
         data = self._transport.request("GET", _sandbox_path(sandbox_id)).json()
         return Sandbox.model_validate(data["sandbox"])
 
+    def start(self, sandbox_id: str, *, idempotency_key: str | None = None) -> Sandbox:
+        # Execute and file calls also wake a stopped VM; this readies it ahead of time.
+        headers = {"idempotency-key": idempotency_key} if idempotency_key else None
+        data = self._transport.request(
+            "POST", _sandbox_path(sandbox_id, "/start"), headers=headers, json={}
+        ).json()
+        return Sandbox.model_validate(data["sandbox"])
+
+    def stop(self, sandbox_id: str) -> SandboxStopResult:
+        # Stops a running VM now, keeping /workspace; never wakes a stopped one.
+        data = self._transport.request("POST", _sandbox_path(sandbox_id, "/stop"), json={}).json()
+        return SandboxStopResult(
+            sandbox=Sandbox.model_validate(data["sandbox"]), stopped=bool(data["stopped"])
+        )
+
     def delete(self, sandbox_id: str) -> None:
         self._transport.request("DELETE", _sandbox_path(sandbox_id))
 
@@ -409,6 +430,23 @@ class AsyncSandboxes:
     async def inspect(self, sandbox_id: str) -> Sandbox:
         data = (await self._transport.request("GET", _sandbox_path(sandbox_id))).json()
         return Sandbox.model_validate(data["sandbox"])
+
+    async def start(self, sandbox_id: str, *, idempotency_key: str | None = None) -> Sandbox:
+        headers = {"idempotency-key": idempotency_key} if idempotency_key else None
+        data = (
+            await self._transport.request(
+                "POST", _sandbox_path(sandbox_id, "/start"), headers=headers, json={}
+            )
+        ).json()
+        return Sandbox.model_validate(data["sandbox"])
+
+    async def stop(self, sandbox_id: str) -> SandboxStopResult:
+        data = (
+            await self._transport.request("POST", _sandbox_path(sandbox_id, "/stop"), json={})
+        ).json()
+        return SandboxStopResult(
+            sandbox=Sandbox.model_validate(data["sandbox"]), stopped=bool(data["stopped"])
+        )
 
     async def delete(self, sandbox_id: str) -> None:
         await self._transport.request("DELETE", _sandbox_path(sandbox_id))

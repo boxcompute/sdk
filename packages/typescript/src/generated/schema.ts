@@ -309,6 +309,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v2/sandboxes/{id}/stop": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Stop a running VM now, keeping its files
+         * @description Stops billing without waiting for the idle stop. Files under /workspace are kept; running processes end. Never wakes a stopped VM and needs no credit, so it also works at zero balance. `stopped` is false when the VM was not running. Start, execute or a file call wakes it again.
+         */
+        post: operations["stopSandbox"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v2/sandboxes/{id}/cooperative-connection/{endpointId}": {
         parameters: {
             query?: never;
@@ -776,6 +796,7 @@ export interface components {
             nextCursor: string | null;
         };
         StartSandboxRequest: Record<string, never>;
+        StopSandboxRequest: Record<string, never>;
         ServiceAccessRequest: {
             requested_at: number;
             client_key: string;
@@ -811,7 +832,7 @@ export interface components {
         };
         Error: {
             /** @enum {string} */
-            code: "AUTHENTICATION_REQUIRED" | "INVALID_API_KEY" | "INSUFFICIENT_SCOPE" | "INSUFFICIENT_CREDIT" | "BILLING_ACCOUNT_FROZEN" | "FEATURE_ACCESS_DENIED" | "INVALID_REQUEST" | "INVALID_PATH" | "INVALID_RANGE" | "INVALID_CURSOR" | "CURSOR_STALE" | "NOT_FOUND" | "FILE_NOT_FOUND" | "DESTINATION_EXISTS" | "PRECONDITION_FAILED" | "EDIT_CONFLICT" | "BINARY_FILE" | "EXECUTION_TIMEOUT" | "PAYLOAD_TOO_LARGE" | "SANDBOX_UNAVAILABLE" | "UNSUPPORTED_MEDIA_TYPE" | "UNSUPPORTED_FEATURE" | "INVALID_IDEMPOTENCY_KEY" | "IDEMPOTENCY_CONFLICT" | "WORKSPACE_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE" | "RATE_LIMITED";
+            code: "AUTHENTICATION_REQUIRED" | "INVALID_API_KEY" | "ACCOUNT_SUSPENDED" | "INSUFFICIENT_SCOPE" | "INSUFFICIENT_CREDIT" | "BILLING_ACCOUNT_FROZEN" | "FEATURE_ACCESS_DENIED" | "INVALID_REQUEST" | "INVALID_PATH" | "INVALID_RANGE" | "INVALID_CURSOR" | "CURSOR_STALE" | "NOT_FOUND" | "FILE_NOT_FOUND" | "DESTINATION_EXISTS" | "PRECONDITION_FAILED" | "EDIT_CONFLICT" | "BINARY_FILE" | "EXECUTION_TIMEOUT" | "PAYLOAD_TOO_LARGE" | "SANDBOX_UNAVAILABLE" | "UNSUPPORTED_MEDIA_TYPE" | "UNSUPPORTED_FEATURE" | "INVALID_IDEMPOTENCY_KEY" | "IDEMPOTENCY_CONFLICT" | "WORKSPACE_QUOTA_EXCEEDED" | "SERVICE_UNAVAILABLE" | "RATE_LIMITED";
             error: string;
         };
         Workspace: {
@@ -853,20 +874,22 @@ export interface components {
              */
             size?: "small" | "large";
             createdAt: number;
+            /** @description While running: when an API call (start, execute, a file call, starting an operation, preview traffic) last used it. A running VM is stopped 30 idle minutes after this; reading it, logs and polling operations do not count. Once stopped: when it stopped. */
             lastUsedAt: number | null;
         };
         CreateSandboxRequest: {
             workspaceId: string;
             name?: string;
             /**
-             * @description Runtime selection. Omitted or true creates a VM sandbox (fixed image; no volumes, libraries or image override); false creates a gVisor container sandbox. An explicit vmSandbox:true requires an Idempotency-Key header; an omitted vmSandbox may create keyless, in which case the server generates the key. Historical idempotency replays retain their original runtime.
+             * @description Runtime selection. Omitted or true creates a VM sandbox (fixed image; no volumes, libraries or image override). False is rejected with INVALID_REQUEST; new gVisor creation is disabled. An explicit vmSandbox:true requires an Idempotency-Key header; an omitted vmSandbox may create keyless, in which case the server generates the key. Completed historical idempotency responses retain their original runtime.
              * @default true
+             * @constant
              */
-            vmSandbox: boolean;
-            /** @description VM only: defaults to false (Internet) for new requests; true selects no NIC. Ignored for non-VM sandboxes. Historical idempotency replays retain their original blocked intent. */
+            vmSandbox: true;
+            /** @description VM only: defaults to false (Internet) for new requests; true selects no NIC. Historical idempotency replays retain their original blocked intent. */
             blockNetwork?: boolean;
             /**
-             * @description VM only: resource profile. Omitted or "small" is 0.5 vCPU / 1024 MiB; "large" is 1.5 vCPU / 3072 MiB. Both default to a 30 GiB thin-provisioned workspace. "small" is ignored for gVisor sandboxes and "large" is rejected with INVALID_ARGUMENT. Historical idempotency replays retain their original size and workspace capacity.
+             * @description VM only: resource profile. Omitted or "small" is 0.5 vCPU / 1024 MiB; "large" is 1.5 vCPU / 3072 MiB. Both default to a 30 GiB thin-provisioned workspace. Historical idempotency replays retain their original size and workspace capacity.
              * @default small
              * @enum {string}
              */
@@ -2772,6 +2795,118 @@ export interface operations {
             };
             /** @description The account's Sandbox count or workspace storage limit is reached; stopped Sandboxes count toward both */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Operation unsupported by this runtime */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Sandbox service unavailable */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    stopSandbox: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Customer-facing Sandbox ID. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StopSandboxRequest"];
+            };
+        };
+        responses: {
+            /** @description Success */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sandbox: components["schemas"]["Sandbox"];
+                        /** @description False when the VM was not running. */
+                        stopped: boolean;
+                    };
+                };
+            };
+            /** @description Invalid request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Missing or invalid API key */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description API key lacks the required scope */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Owned resource not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The VM is starting, or is still stopping or in use; try again shortly */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body exceeds 128 KiB */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Request body is not application/json */
+            415: {
                 headers: {
                     [name: string]: unknown;
                 };

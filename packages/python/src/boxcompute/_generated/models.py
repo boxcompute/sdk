@@ -149,6 +149,10 @@ class StartSandboxRequest(BaseModel):
     )
 
 
+class StopSandboxRequest(StartSandboxRequest):
+    pass
+
+
 class Port(RootModel[conint(ge=1, le=65535)]):
     root: conint(ge=1, le=65535)
 
@@ -226,6 +230,7 @@ class CooperativeRevoke(BaseModel):
 class Code(Enum):
     authentication_required = 'AUTHENTICATION_REQUIRED'
     invalid_api_key = 'INVALID_API_KEY'
+    account_suspended = 'ACCOUNT_SUSPENDED'
     insufficient_scope = 'INSUFFICIENT_SCOPE'
     insufficient_credit = 'INSUFFICIENT_CREDIT'
     billing_account_frozen = 'BILLING_ACCOUNT_FROZEN'
@@ -339,6 +344,9 @@ class Sandbox(BaseModel):
     """
     created_at: conint(ge=0, le=9007199254740991) = Field(..., alias='createdAt')
     last_used_at: conint(ge=0, le=9007199254740991) | None = Field(..., alias='lastUsedAt')
+    """
+    While running: when an API call (start, execute, a file call, starting an operation, preview traffic) last used it. A running VM is stopped 30 idle minutes after this; reading it, logs and polling operations do not count. Once stopped: when it stopped.
+    """
 
 
 class CreateSandboxRequest(BaseModel):
@@ -350,17 +358,17 @@ class CreateSandboxRequest(BaseModel):
     }
     workspace_id: constr(pattern=r'\S', min_length=1) = Field(..., alias='workspaceId')
     name: constr(pattern=r'\S', min_length=1, max_length=80) | None = None
-    vm_sandbox: bool | None = Field(True, alias='vmSandbox')
+    vm_sandbox: Literal[True] = Field(True, alias='vmSandbox')
     """
-    Runtime selection. Omitted or true creates a VM sandbox (fixed image; no volumes, libraries or image override); false creates a gVisor container sandbox. An explicit vmSandbox:true requires an Idempotency-Key header; an omitted vmSandbox may create keyless, in which case the server generates the key. Historical idempotency replays retain their original runtime.
+    Runtime selection. Omitted or true creates a VM sandbox (fixed image; no volumes, libraries or image override). False is rejected with INVALID_REQUEST; new gVisor creation is disabled. An explicit vmSandbox:true requires an Idempotency-Key header; an omitted vmSandbox may create keyless, in which case the server generates the key. Completed historical idempotency responses retain their original runtime.
     """
     block_network: bool | None = Field(None, alias='blockNetwork')
     """
-    VM only: defaults to false (Internet) for new requests; true selects no NIC. Ignored for non-VM sandboxes. Historical idempotency replays retain their original blocked intent.
+    VM only: defaults to false (Internet) for new requests; true selects no NIC. Historical idempotency replays retain their original blocked intent.
     """
     size: Size | None = 'small'
     """
-    VM only: resource profile. Omitted or "small" is 0.5 vCPU / 1024 MiB; "large" is 1.5 vCPU / 3072 MiB. Both default to a 30 GiB thin-provisioned workspace. "small" is ignored for gVisor sandboxes and "large" is rejected with INVALID_ARGUMENT. Historical idempotency replays retain their original size and workspace capacity.
+    VM only: resource profile. Omitted or "small" is 0.5 vCPU / 1024 MiB; "large" is 1.5 vCPU / 3072 MiB. Both default to a 30 GiB thin-provisioned workspace. Historical idempotency replays retain their original size and workspace capacity.
     """
 
 

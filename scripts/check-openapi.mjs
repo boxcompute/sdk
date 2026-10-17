@@ -10,6 +10,8 @@ const requiredOperations = new Set([
   "createSandbox",
   "inspectSandbox",
   "deleteSandbox",
+  "startExistingSandbox",
+  "stopSandbox",
   "listSandboxLogs",
   "executeCommand",
   "startSandboxOperation",

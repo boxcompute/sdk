@@ -31,7 +31,7 @@ console.log(result.stdout);
 await boxcompute.sandboxes.delete(sandbox.id);
 ```
 
-The SDK includes workspaces, Sandboxes, synchronous execution, durable
+The SDK includes workspaces, Sandboxes (create, start, stop and delete), synchronous execution, durable
 operations, logs, binary-safe file operations, usage, typed errors, request
 timeouts, cancellation, and asynchronous API-key providers.
 

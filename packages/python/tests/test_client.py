@@ -548,3 +548,63 @@ async def test_async_deleted_sandboxes_and_previews() -> None:
         assert await boxcompute.previews.close("sbx_1", preview.preview_id) is None
 
     assert bodies[3] == b'{"port":3000}'
+
+
+def _lifecycle(calls: list[tuple[str, str, bytes, str | None]]):
+    sandbox = {
+        "id": "sbx_1",
+        "workspaceId": "ws_1",
+        "name": "vm",
+        "state": "cold",
+        "vmSandbox": True,
+        "createdAt": 1,
+        "lastUsedAt": 2,
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(
+            (
+                request.method,
+                str(request.url),
+                request.read(),
+                request.headers.get("idempotency-key"),
+            )
+        )
+        if request.url.path.endswith("/stop"):
+            return httpx.Response(200, json={"sandbox": sandbox, "stopped": True})
+        return httpx.Response(201, json={"sandbox": {**sandbox, "state": "running"}})
+
+    return handler
+
+
+def test_starts_and_stops_an_existing_vm() -> None:
+    calls: list[tuple[str, str, bytes, str | None]] = []
+    http = httpx.Client(
+        base_url="https://api.boxcompute.ai", transport=httpx.MockTransport(_lifecycle(calls))
+    )
+    boxcompute = BoxCompute(api_key="bc_live_test", http_client=http)
+    started = boxcompute.sandboxes.start("sbx/1", idempotency_key="wake-1")
+    assert started.state.value == "running"
+    result = boxcompute.sandboxes.stop("sbx/1")
+    assert result.stopped is True
+    assert result.sandbox.state.value == "cold"
+    assert calls == [
+        ("POST", "https://api.boxcompute.ai/api/v2/sandboxes/sbx%2F1/start", b"{}", "wake-1"),
+        ("POST", "https://api.boxcompute.ai/api/v2/sandboxes/sbx%2F1/stop", b"{}", None),
+    ]
+
+
+@pytest.mark.asyncio
+async def test_async_starts_and_stops_an_existing_vm() -> None:
+    calls: list[tuple[str, str, bytes, str | None]] = []
+    http = httpx.AsyncClient(
+        base_url="https://api.boxcompute.ai", transport=httpx.MockTransport(_lifecycle(calls))
+    )
+    async with AsyncBoxCompute(api_key="bc_live_test", http_client=http) as boxcompute:
+        assert (await boxcompute.sandboxes.start("sbx_1")).state.value == "running"
+        result = await boxcompute.sandboxes.stop("sbx_1")
+        assert result.stopped is True
+    assert [(method, url, idem) for method, url, _, idem in calls] == [
+        ("POST", "https://api.boxcompute.ai/api/v2/sandboxes/sbx_1/start", None),
+        ("POST", "https://api.boxcompute.ai/api/v2/sandboxes/sbx_1/stop", None),
+    ]

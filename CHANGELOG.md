@@ -3,6 +3,24 @@
 All notable SDK changes are documented here. The TypeScript and Python packages
 version independently; each entry names the affected package and version.
 
+## SDK release 2026-10-18
+
+### `@boxcompute/sdk` 0.5.0 and `boxcompute` 0.5.0
+
+- Added `sandboxes.stop(id)` to stop a running VM now instead of waiting for
+  the 30-minute idle stop. Files in `/workspace` are kept; it never wakes a
+  stopped VM and needs no credit. It returns `{ sandbox, stopped }`
+  (`SandboxStopResult` in both languages); `stopped` is false when nothing was
+  running. Requires `sandbox:create` and the API's stop endpoint (BoxCompute
+  0.62.0).
+- Added `sandboxes.start(id)` (optional idempotency key) to start a stopped
+  Sandbox ahead of time. Execute and file calls still wake one on their own.
+- The API overview explains the idle stop: which calls keep a VM running and
+  that `Sandbox.lastUsedAt` is the last of them.
+- Synced the bundled OpenAPI contract with the public v2 API (44 operations):
+  the `ACCOUNT_SUSPENDED` error code, and `vmSandbox: false` is now rejected
+  because new gVisor sandboxes are no longer created.
+
 ## SDK release 2026-10-10
 
 ### `@boxcompute/sdk` 0.4.0 and `boxcompute` 0.4.0

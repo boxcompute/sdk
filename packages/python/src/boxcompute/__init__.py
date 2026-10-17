@@ -22,7 +22,7 @@ from ._generated.models import (
     Usage,
     Workspace,
 )
-from .client import AsyncBoxCompute, BoxCompute, FileRead
+from .client import AsyncBoxCompute, BoxCompute, FileRead, SandboxStopResult
 from .errors import BoxComputeError, BoxComputeTransportError
 
 __all__ = [
@@ -51,6 +51,7 @@ __all__ = [
     "SandboxCostDetail",
     "SandboxCostReport",
     "SandboxLogs",
+    "SandboxStopResult",
     "Usage",
     "Workspace",
 ]

@@ -44,7 +44,7 @@ async with AsyncBoxCompute(api_key=os.environ["BOXCOMPUTE_API_KEY"]) as boxcompu
     workspaces = await boxcompute.workspaces.list()
 ```
 
-The SDK includes workspaces, Sandboxes, synchronous execution, durable
+The SDK includes workspaces, Sandboxes (create, start, stop and delete), synchronous execution, durable
 operations, logs, binary-safe file operations, usage, typed Pydantic models,
 structured errors, configurable timeouts, and injectable `httpx` clients.
 
